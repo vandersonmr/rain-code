@@ -168,6 +168,8 @@ int main(int argc,char** argv)
 
   //Print statistics
   if (rf) {
+    std::string s("test.dot");
+    rf->rain.printRegionsDOT(s);
 
     ofstream reg_stats_f(reg_stats_fname.get_value().c_str());
     rf->rain.printRAInStats(reg_stats_f);

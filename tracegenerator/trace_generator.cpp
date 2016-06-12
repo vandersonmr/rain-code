@@ -111,9 +111,6 @@ int main(int argc, char **argv, char **envp)
 {
   out = new trace_io::raw_output_pipe_t(string("test"));
 
-  for (int i = 0; i < 100; i++) {
-  }
-
   if (argc < 3) {
     printf("You should pass the data filepath and the text filepath as argument!\n");
     return 1;

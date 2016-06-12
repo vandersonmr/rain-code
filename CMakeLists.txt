@@ -25,11 +25,11 @@ project (RAIn)
 add_subdirectory(arglib)
 add_subdirectory(tracelib)
 add_subdirectory(rainlib)
+add_subdirectory(tracegenerator)
 
 # Add executable
 add_executable(rain_tool.bin main.cpp)
 add_executable(filter_tool.bin filter.cpp)
-add_executable(trace_tool.bin trace_generator.cpp)
 
 include_directories ("${PROJECT_SOURCE_DIR}/arglib")
 include_directories ("${PROJECT_SOURCE_DIR}/tracelib")
@@ -37,4 +37,5 @@ include_directories ("${PROJECT_SOURCE_DIR}/rainlib")
 
 target_link_libraries (rain_tool.bin arglib tracelib rainlib)
 target_link_libraries (filter_tool.bin arglib tracelib)
-target_link_libraries (trace_tool.bin tracelib unicorn)
+
+INSTALL(TARGETS rain_tool.bin filter_tool.bin RUNTIME DESTINATION bin)
