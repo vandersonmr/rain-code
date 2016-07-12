@@ -40,32 +40,32 @@ namespace rain {
 
     struct EdgeListItem
     {
-    EdgeListItem() : edge(NULL), next(NULL) {}
+      EdgeListItem() : edge(NULL), next(NULL) {}
       Edge* edge;
       EdgeListItem* next;
     };
-      
-    
+
+
     /** 
      *  @brief A Region Node object represents one instruction inside the region
      */
     class Node
     {
     public:
-      
+
       Node();
       Node(unsigned long long);
       ~Node();
-      
+
       unsigned long long getAddress() {return addr;}
-      
+
       void insertOutEdge(Edge*, Node*);
       void insertInEdge(Edge*, Node*);
 
       Edge* findOutEdge(unsigned long long next_ip);
       Edge* findOutEdge(Node* target) const;
       Edge* findInEdge(Node* target) const;
-      
+
     public:
 
       unsigned long long  freq_counter; //< Frequency counter.
@@ -74,18 +74,18 @@ namespace rain {
       /** Instructions property */
       struct instr_property {
         instr_property() : call(false) {}
-	bool     call;         //< Call instruction?
+        bool     call;         //< Call instruction?
       } inst_property;
-       
+
       /** List of out edges. */
       EdgeListItem* out_edges;
       EdgeListItem* in_edges;
-      
+
     private:
 
       unsigned long long addr; //< Instruction address.
     };
-    
+
     /** 
      *  @brief A Region Edge represents the control flow between instructions.
      */
@@ -95,24 +95,24 @@ namespace rain {
 
       Edge() {}
       Edge(Node* x, Node* y) : src(x), tgt(y), freq_counter(1) {}
-      
+
       /// Address of the target instruction.
       unsigned long long target() { return tgt->getAddress(); }
 
       /// Address of the source instruction.
       unsigned long long source() { return src->getAddress(); }
-      
+
     public:
 
       Node* src;                       //< Source node (instruction)
       Node* tgt;                       //< Target node (instruction)
       unsigned long long freq_counter; //< Frequency counter
     };
-    
+
   public:
-    
+
     Region() : reg_out_edges(NULL), reg_in_edges(NULL) 
-      {}
+    {}
     ~Region();
 
     unsigned long long allNodesFreq() const;
@@ -120,7 +120,7 @@ namespace rain {
     unsigned long long exitNodesFreq() const;
     unsigned long long externalEntriesFreq() const;
     unsigned long long mainExitsFreq() const;
-    
+
     void insertNode(Node * node)
     {
       node->region = this;
@@ -131,7 +131,7 @@ namespace rain {
     void setExitNode(Node* node)
     {exit_nodes.push_back(node);}
     Edge* createInnerRegionEdge(Node* src, Node* tgt);
-    
+
     /** A região é composta por nós ligados por arestas, semelhante a um CFG. */
     list<Node* > nodes;
     /** List of pointer to entry nodes. */
@@ -158,7 +158,7 @@ namespace rain {
     list<Edge* > region_inner_edges;
 
   };
-  
+
   /** 
    * Region Appraisal Infrastructure class
    * In order to update the state of the trace execution automata (TEA),
@@ -181,11 +181,11 @@ namespace rain {
 
     /** List of inter region edges. */
     list<Region::Edge* > inter_region_edges;
-  
+
     unsigned region_id_generator;
 
   public:	
-    
+
     /** Map region identifiers to regions. */
     map<unsigned, Region*> regions;
 
@@ -198,7 +198,7 @@ namespace rain {
 
     /** Current node. */
     Region::Node* cur_node;
-    
+
     /** Hash table for entry nodes. */
     map<unsigned long long, Region::Node*> region_entry_nodes;
 
@@ -210,20 +210,20 @@ namespace rain {
       nte_loop_edge->src = nte_loop_edge->tgt = nte;
       cur_node = nte;
     }
-  
+
     ~RAIn()
     {
       delete nte;
       delete nte_loop_edge;
       for (map<unsigned, Region*>::iterator it = regions.begin(); 
-	   it != regions.end(); it++)
+          it != regions.end(); it++)
       {
-	Region* r = it->second;
-	delete r;
+        Region* r = it->second;
+        delete r;
       }
       regions.clear();
     }
-  
+
     /** Return the edge that will be followed if the next_ip is executed. */
     Region::Edge* queryNext(unsigned long long next_ip);
 
@@ -233,16 +233,16 @@ namespace rain {
 
     /** Execute the edge (update the current node and related statistics). */
     void executeEdge(Region::Edge* edg);
-    
+
     /** Create a new region. */
     Region* createRegion();
-    
+
     /** Create an edge to connect two nodes from different regions. */
     Region::Edge* createInterRegionEdge(Region::Node*, Region::Node*);
 
     void setEntry(Region::Node *);
     void setExit(Region::Node *);
-    
+
     void printRegionsStats(ostream&);
     void printOverallStats(ostream&);
 
@@ -250,16 +250,16 @@ namespace rain {
     void printRegionDOT(Region *, ostream&);
     void printRegionsDOT(string&);
   };
-  
+
   class RF_Technique
   {
   public:
 
     virtual void 
       process(unsigned long long cur_addr, char cur_opcode[16], 
-	      char unsigned cur_length, 
-	      unsigned long long nxt_addr, char nxt_opcode[16], 
-	      char unsigned nxt_length) = 0;
+          char unsigned cur_length, 
+          unsigned long long nxt_addr, char nxt_opcode[16], 
+          char unsigned nxt_length) = 0;
 
     virtual void finish() = 0;
 

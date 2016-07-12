@@ -37,7 +37,7 @@ clarg::argBool   help("-h",  "display the help message");
 void usage(char* prg_name) 
 {
   cout << "Usage: " << prg_name << " -b basename -s index -e index [-h] -ofn output_filename" 
-       << endl << endl;
+    << endl << endl;
 
   cout << "DESCRIPTION:" << endl;
 
@@ -51,25 +51,25 @@ int validate_arguments()
 {
   if (!start_i.was_set()) {
     cerr << "Error: you must provide the start file index."
-	 << "(use -h for help)" << endl;
+      << "(use -h for help)" << endl;
     return 1;
   }
 
   if (!end_i.was_set()) {
     cerr << "Error: you must provide the end file index."
-	 << "(use -h for help)" << endl;
+      << "(use -h for help)" << endl;
     return 1;
   }
 
   if (!basename.was_set()) {
     cerr << "Error: you must provide the basename."
-	 << "(use -h for help)" << endl;
+      << "(use -h for help)" << endl;
     return 1;
   }
 
   if (end_i.get_value() < start_i.get_value()) {
     cerr << "Error: start index must be less (<) or equal (=) to end index" 
-	 << "(use -h for help)" << endl;
+      << "(use -h for help)" << endl;
     return 1;
   }
 
@@ -94,8 +94,8 @@ int main(int argc,char** argv)
 
   // Create the input pipe.
   trace_io::raw_input_pipe_t in(basename.get_value(), 
-				start_i.get_value(), 
-				end_i.get_value());
+      start_i.get_value(), 
+      end_i.get_value());
 
   // Create the input pipe.
   trace_io::raw_output_pipe_t out(out_fn.get_value());

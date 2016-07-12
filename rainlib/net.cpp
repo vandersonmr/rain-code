@@ -35,7 +35,7 @@ using namespace rain;
 clarg::argBool mix_usr_sys("-mix_NET",  "Allow user and system code in the same NET regions.");
 
 void NET::process(unsigned long long cur_addr, char cur_opcode[16], char unsigned cur_length, 
-		  unsigned long long nxt_addr, char nxt_opcode[16], char unsigned nxt_length)
+    unsigned long long nxt_addr, char nxt_opcode[16], char unsigned nxt_length)
 {
   // Execute TEA transition.
   Region::Edge* edg = rain.queryNext(cur_addr);
@@ -60,15 +60,15 @@ void NET::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
 
   if (profile_target_instr) {
     profiler.update(cur_addr);
-    if (profiler.is_hot(cur_addr) && !recording_NET) {
+    if (profiler.is_hot(cur_addr) && !recording) {
       // Start region formation....
       RF_DBG_MSG("0x" << setbase(16) << cur_addr << " is hot. Start Region formation." << endl);
-      recording_NET = true;
+      recording = true;
       recording_buffer.reset();
     }
   }
 
-  if (recording_NET) {
+  if (recording) {
     // Check for stop conditions.
     // DBG_ASSERT(edg->src == rain.nte);
     bool stopRecording = false;
@@ -77,45 +77,48 @@ void NET::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
       RF_DBG_MSG("Stopped recording because found a region entry." << endl);
       stopRecording = true;
     }
+    else if (recording_buffer.contains_address(last_addr) && (cur_addr <= last_addr)) {
+      stopRecording = true;
+    }
     else if (recording_buffer.contains_address(cur_addr)) {
       // Hit an instruction already recorded (loop)
       RF_DBG_MSG("Stopped recording because isnt " << "0x" << setbase(16) << 
-		 cur_addr << " is already included on the recording buffer." << endl);
+          cur_addr << " is already included on the recording buffer." << endl);
       stopRecording = true;
     }
     else if (recording_buffer.addresses.size() > 1) {
       // Only check if buffer alreay has more than one instruction recorded.
       if (switched_mode(recording_buffer.addresses.back(), cur_addr)) {
-	if (!mix_usr_sys.was_set()) {
-	  // switched between user and system mode
-	  RF_DBG_MSG("Stopped recording because processor switched mode: 0x" << setbase(16) << 
-		     last_addr << " -> 0x" << cur_addr << endl);
-	  stopRecording = true;
-	}
+        if (!mix_usr_sys.was_set()) {
+          // switched between user and system mode
+          RF_DBG_MSG("Stopped recording because processor switched mode: 0x" << setbase(16) << 
+              last_addr << " -> 0x" << cur_addr << endl);
+          stopRecording = true;
+        }
       }
     }
 
     if (stopRecording) {
       // Create region and add to RAIn TEA
       RF_DBG_MSG("Stop buffering and build new NET region." << endl);
-      recording_NET = false;
-      buildNETRegion();
+      recording = false;
+      buildRegion();
     }
     else {
       // Record target instruction on region formation buffer
       RF_DBG_MSG("Recording " << "0x" << setbase(16) << 
-		 cur_addr << " on the recording buffer" << endl);
+          cur_addr << " on the recording buffer" << endl);
       recording_buffer.append(cur_addr); //, cur_opcode, cur_length);
     }
   }
 
   last_addr = cur_addr;  
 }
-  
+
 
 //rain.createEdge(rain.cur_node,rain.next_node);
 //rain.createOrUpdateEdge(rain.nte,rain.next_node);
-void NET::buildNETRegion()
+void NET::buildRegion()
 {
   if (recording_buffer.addresses.size() == 0) {
     cout << "WARNING: buildNETRegion() invoked, but recording_buffer is empty..." << endl;
@@ -127,18 +130,18 @@ void NET::buildNETRegion()
 
   list<unsigned long long>::iterator it;
   for (it = recording_buffer.addresses.begin(); 
-       it != recording_buffer.addresses.end(); it++) {
+      it != recording_buffer.addresses.end(); it++) {
     unsigned long long addr = (*it);
 
     Region::Node* node = new Region::Node(addr);
     r->insertNode(node);
-  
+
     if (!last_node) {
       // First node
 #ifdef DEBUG
       // Make sure there were no region associated with the entry address.
       assert(rain.region_entry_nodes.find(node->getAddress()) == 
-	     rain.region_entry_nodes.end());
+          rain.region_entry_nodes.end());
 #endif
       rain.setEntry(node);
     }
@@ -154,8 +157,9 @@ void NET::buildNETRegion()
   }
 
   RF_DBG_MSG("Region " << r->id << " created. # nodes = " <<
-	     r->nodes.size() << endl);
+      r->nodes.size() << endl);
 
+  //recording_buffer.reset();
 }
 
 void NET::finish()

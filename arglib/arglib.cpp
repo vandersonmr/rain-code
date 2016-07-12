@@ -41,7 +41,7 @@ namespace clarg {
     void register_argument(arg_base* arg)
     {
       DEBUG_AL("Registering argument " << arg->get_name() << " (" 
-	       << arg->get_desc() << ")" << endl);
+          << arg->get_desc() << ")" << endl);
       args[arg->get_name()] = arg;
     }
 
@@ -49,8 +49,8 @@ namespace clarg {
     {
       MAP<string, arg_base*>::iterator it;
       for (it = args.begin(); it != args.end(); it++) {
-	arg_base* arg = it->second;
-	os << prefix << arg->get_name() << " : " << arg->get_desc() << suffix;
+        arg_base* arg = it->second;
+        os << prefix << arg->get_name() << " : " << arg->get_desc() << suffix;
       }
     }
 
@@ -58,25 +58,25 @@ namespace clarg {
     {
       MAP<string, arg_base*>::iterator it;
       for (it = args.begin(); it != args.end(); it++) {
-	if (defined_only && !(it->second->was_set()))
-	  continue;
-	os << "# " << it->second->get_desc() << " (default value:";
-	it->second->write_parameters(os, true);
-	os << ")" << endl;
-	os << it->second->get_name() << " ";
-	it->second->write_parameters(os);
-	os << endl;
+        if (defined_only && !(it->second->was_set()))
+          continue;
+        os << "# " << it->second->get_desc() << " (default value:";
+        it->second->write_parameters(os, true);
+        os << ")" << endl;
+        os << it->second->get_name() << " ";
+        it->second->write_parameters(os);
+        os << endl;
       }
     }
 
     /**
-    * Read the arguments from file.
-    * Returns 0 if ok, != 0 otherwise.
-    * TODO: this is not implemented yet. The goal of this method is to parser
-    *       all the arguments from an argument file. In this way, you may dump
-    *       all the arguments used in a given run and re-use them by parsing
-    *       from the file. To do so, you may infoke this method.
-    */
+     * Read the arguments from file.
+     * Returns 0 if ok, != 0 otherwise.
+     * TODO: this is not implemented yet. The goal of this method is to parser
+     *       all the arguments from an argument file. In this way, you may dump
+     *       all the arguments used in a given run and re-use them by parsing
+     *       from the file. To do so, you may infoke this method.
+     */
     int parse_arguments_from_file(std::istream& is)
     {
       /* Suggestion: parse lines, one by one. For each line:
@@ -88,56 +88,56 @@ namespace clarg {
       cerr << "ERROR: " << __PRETTY_FUNCTION__ << " was not implemented yet" << endl;
       return 1; /* Return error for now. */
     }
-    
+
     int parse_arguments(int argc, char *argv[])
     {
       if (argc <= 0)
-	return -1;
+        return -1;
       prog_name = string(argv[0]);
       argv++;
       argc--;
 
       while (argc > 0) {
-	
-	string argn = string(argv[0]);
-	/* Search argument */
-	DEBUG_AL("parse_arguments: look for \"" << argn << "\"" << endl);
-	std::MAP<string,arg_base*>::const_iterator got = args.find(argn);
-	if (got == args.end()) {
-	  cerr << "Error: could not find argument: " << argn << endl;
-	  return -1;
-	}
-	DEBUG_AL("found it" << endl);
-	arg_base* argp = got->second;
-	argv++;
-	argc--;
 
-	/* Sanity checking. */
-	if (argp->was_set()) {
-	  /* argument is being set more than once. */
-	  cerr << "WARNING: argument " << argp->get_name() << " is being set more than once." << endl;
-	}
-	else {
-	  argp->mark_set(true);
-	}
+        string argn = string(argv[0]);
+        /* Search argument */
+        DEBUG_AL("parse_arguments: look for \"" << argn << "\"" << endl);
+        std::MAP<string,arg_base*>::const_iterator got = args.find(argn);
+        if (got == args.end()) {
+          cerr << "Error: could not find argument: " << argn << endl;
+          return -1;
+        }
+        DEBUG_AL("found it" << endl);
+        arg_base* argp = got->second;
+        argv++;
+        argc--;
 
-	/* Parse parameters */
-	int consumed = argp->parse_parameters(argc, argv);
-	DEBUG_AL("parse_arguments: consumed " << consumed 
-		 << " parameters when parsing argument "
-		 << argn << endl);
-		 
-	if (consumed < 0) {
-	  /* parse_arguments returned error. */
-	  cerr << "Error when parsing parameters for argument: " << got->first << endl;
-	  return 1;
-	}
+        /* Sanity checking. */
+        if (argp->was_set()) {
+          /* argument is being set more than once. */
+          cerr << "WARNING: argument " << argp->get_name() << " is being set more than once." << endl;
+        }
+        else {
+          argp->mark_set(true);
+        }
 
-	/* Update argc, argv */
-	argv += consumed;
-	argc -= consumed;
+        /* Parse parameters */
+        int consumed = argp->parse_parameters(argc, argv);
+        DEBUG_AL("parse_arguments: consumed " << consumed 
+            << " parameters when parsing argument "
+            << argn << endl);
+
+        if (consumed < 0) {
+          /* parse_arguments returned error. */
+          cerr << "Error when parsing parameters for argument: " << got->first << endl;
+          return 1;
+        }
+
+        /* Update argc, argv */
+        argv += consumed;
+        argc -= consumed;
       }
-      
+
       return 0;
     }
 
@@ -154,7 +154,7 @@ namespace clarg {
 
     args_container* get_container() { 
       if (container == NULL) 
-	create_container();
+        create_container();
       return container; 
     }
 
@@ -164,7 +164,7 @@ namespace clarg {
 
     void create_container() {
       if (container == NULL)
-	container = new args_container();
+        container = new args_container();
     }
   };
 
@@ -184,13 +184,13 @@ namespace clarg {
   {
     cm.get_container()->list_arguments(os, defined_only);
   }
-  
+
   /* Print the arguments descriptions. */
   void arguments_descriptions(ostream& os, string prefix, string suffix)
   {
     cm.get_container()->arguments_descriptions(os,prefix,suffix);
   }
-  
+
   /* Parse the arguments. */
   int parse_arguments(int argc, char *argv[])
   {

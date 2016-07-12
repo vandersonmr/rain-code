@@ -21,6 +21,8 @@ cmake_minimum_required (VERSION 2.6)
 
 project (RAIn)
 
+set(CMAKE_CXX_FLAGS "-std=c++11")
+
 # Add libraries
 add_subdirectory(arglib)
 add_subdirectory(tracelib)

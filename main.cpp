@@ -34,13 +34,14 @@ using namespace rain;
 clarg::argInt    start_i("-s", "start: first file index ", 0);
 clarg::argInt    end_i("-e", "end: last file index", 0);
 clarg::argString basename("-b", "input file basename", "trace");
+clarg::argString technique("-t", "RF Technique", "net");
 clarg::argBool   help("-h",  "display the help message");
 clarg::argString reg_stats_fname("-reg_stats", 
-				 "file name to dump regions statistics in CSV format", 
-				 "reg_stats.csv");
+    "file name to dump regions statistics in CSV format", 
+    "reg_stats.csv");
 clarg::argString overall_stats_fname("-overall_stats", 
-				     "file name to dump overall statistics in CSV format", 
-				     "overall_stats.csv");
+    "file name to dump overall statistics in CSV format", 
+    "overall_stats.csv");
 
 #define LINUX_SYS_THRESHOLD   0xB2D05E00         // 3000000000
 #define WINDOWS_SYS_THRESHOLD 0xF9CCD8A1C5080000 // 18000000000000000000 
@@ -52,7 +53,7 @@ clarg::argBool wt("-wt", "windows trace. System/user address threshold = 0xF9CCD
 void usage(char* prg_name) 
 {
   cout << "Usage: " << prg_name << " -b basename -s index -e index [-h] [-o stats.csv] {-lt|-wt}" 
-       << endl << endl;
+    << endl << endl;
 
   cout << "DESCRIPTION:" << endl;
 
@@ -80,25 +81,31 @@ int validate_arguments()
 {
   if (!start_i.was_set()) {
     cerr << "Error: you must provide the start file index."
-	 << "(use -h for help)" << endl;
+      << "(use -h for help)" << endl;
     return 1;
   }
 
   if (!end_i.was_set()) {
     cerr << "Error: you must provide the end file index."
-	 << "(use -h for help)" << endl;
+      << "(use -h for help)" << endl;
     return 1;
   }
 
   if (!basename.was_set()) {
     cerr << "Error: you must provide the basename."
-	 << "(use -h for help)" << endl;
+      << "(use -h for help)" << endl;
+    return 1;
+  }
+
+  if (!technique.was_set()) {
+    cerr << "Error: you must provide the RF Technique: net or lei"
+      << "(use -h for help)" << endl;
     return 1;
   }
 
   if (end_i.get_value() < start_i.get_value()) {
     cerr << "Error: start index must be less (<) or equal (=) to end index" 
-	 << "(use -h for help)" << endl;
+      << "(use -h for help)" << endl;
     return 1;
   }
 
@@ -141,9 +148,9 @@ int main(int argc,char** argv)
     return 1;
 
   // Create the input pipe.
-  trace_io::raw_input_pipe_t in(basename.get_value(), 
-				start_i.get_value(), 
-				end_i.get_value());
+  trace_io::raw_input_pipe_t in(basename.get_value(),
+      start_i.get_value(),
+      end_i.get_value());
 
   // Current and next instructions.
   trace_io::trace_item_t current;
@@ -155,13 +162,20 @@ int main(int argc,char** argv)
     return 1;
   }
 
-  rain::RF_Technique* rf = new rf_technique::NET();
+  rain::RF_Technique* rf = NULL; 
+  std::string chosenTechnique = technique.get_value();
+
+  if (chosenTechnique == "lei") 
+    rf = new rf_technique::LEI();
+  else 
+    rf = new rf_technique::NET();
 
   // While there are instructions
   while (in.get_next_instruction(next)) {
     // Process the trace
-    if (rf) rf->process(current.addr, current.opcode, current.length,
-			next.addr, next.opcode, next.length);
+    if (rf)
+      rf->process(current.addr, current.opcode, current.length,
+        next.addr, next.opcode, next.length);
     current = next;
   }
   if (rf) rf->finish();
@@ -178,7 +192,7 @@ int main(int argc,char** argv)
     ofstream overall_stats_f(overall_stats_fname.get_value().c_str());
     rf->rain.printOverallStats(overall_stats_f);
     overall_stats_f.close(); 
- }
+  }
 
   return 0; // Return OK.
 }

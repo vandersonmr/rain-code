@@ -39,14 +39,14 @@ using namespace rain;
 unsigned long long RF_Technique::system_threshold;
 
 Region::Node::Node() : region(NULL), freq_counter(0), 
-		       out_edges(NULL), in_edges(NULL) 
+  out_edges(NULL), in_edges(NULL) 
 {}
 
 Region::Node::Node(unsigned long long a) : region(NULL), freq_counter(0), 
-					   out_edges(NULL), in_edges(NULL),
-					   addr(a)
+  out_edges(NULL), in_edges(NULL),
+  addr(a)
 {}
-	
+
 Region::Node::~Node()
 {
   EdgeListItem* it = out_edges;
@@ -74,10 +74,10 @@ Region::Edge* Region::Node::findOutEdge(unsigned long long next_ip)
     if (it->edge->tgt->getAddress() == next_ip) {
 
       if (prev != NULL) {
-	// Move item to beginning of list...
-	prev->next = it->next;
-	it->next = out_edges;
-	out_edges = it;
+        // Move item to beginning of list...
+        prev->next = it->next;
+        it->next = out_edges;
+        out_edges = it;
       }
 
       return it->edge;
@@ -209,12 +209,12 @@ Region::Edge* RAIn::queryNext(unsigned long long next_ip)
     else {
       // Search for region entries, if there is none, return nte_loop_edge
       if (region_entry_nodes.find(next_ip) != region_entry_nodes.end()) {
-	// edge representing transition from nte to region missing.
-	return NULL;
+        // edge representing transition from nte to region missing.
+        return NULL;
       }
       else {
-	// transition from nte to nte
-	return nte_loop_edge;
+        // transition from nte to nte
+        return nte_loop_edge;
       }
     }
   }
@@ -242,7 +242,7 @@ Region::Edge* RAIn::addNext(unsigned long long next_ip)
   if (cur_node == nte) {
     if (next_node == NULL) {
       cerr << "Error, addNext should be not called when "
-	   << "queryNext returns a valid edge." << endl;
+        << "queryNext returns a valid edge." << endl;
       exit (1);
     }
     else {
@@ -326,6 +326,7 @@ unsigned long long Region::allNodesFreq() const
   for (list<Node*>::const_iterator it = nodes.begin(); it!=nodes.end(); it++) {
     c += (*it)->freq_counter;
   }
+  std::cout << std::endl;
   return c;
 }
 
@@ -361,14 +362,14 @@ unsigned long long Region::mainExitsFreq() const
 {
   unsigned long long c = 0;
   list<Node*>::const_iterator it;
-  
+
   for (it=exit_nodes.begin(); it != exit_nodes.end(); it++) {
 
     for (EdgeListItem* eit = (*it)->out_edges; eit; eit=eit->next) {
       Edge* e = eit->edge;
       // Is it an exit edge? 
       if (!isInnerEdge(e)) {
-	c += e->freq_counter;
+        c += e->freq_counter;
       }
     }
 
@@ -391,33 +392,33 @@ void RAIn::printRegionsStats(ostream& stats_f)
   map<unsigned, Region*>::iterator rit;
 
   stats_f << "Region," 
-	  << "# Nodes," 
-	  << "All Nodes Freq," 
-	  << "Entry Nodes Freq," 
-	  << "Exit Nodes Freq," 
-	  << "External Entries,"
-	  << endl;
+    << "# Nodes," 
+    << "All Nodes Freq," 
+    << "Entry Nodes Freq," 
+    << "Exit Nodes Freq," 
+    << "External Entries,"
+    << endl;
   for (rit = regions.begin(); rit != regions.end(); rit++)
   {
     Region* r = rit->second;
 
     stats_f << r->id << ","
-	    << r->nodes.size() << "," 
-	    << r->allNodesFreq() << "," 
-	    << r->entryNodesFreq() << "," 
-	    << r->exitNodesFreq() << "," 
-	    << r->externalEntriesFreq() << ","
-	    << endl;
+      << r->nodes.size() << "," 
+      << r->allNodesFreq() << "," 
+      << r->entryNodesFreq() << "," 
+      << r->exitNodesFreq() << "," 
+      << r->externalEntriesFreq() << ","
+      << endl;
   }
 }
 
 struct cov_less_than_key
 {
-    inline bool operator() (const pair<Region*,unsigned long long>& p1, 
-			    const pair<Region*,unsigned long long>& p2)
-    {
-        return (p1.second >= p2.second);
-    }
+  inline bool operator() (const pair<Region*,unsigned long long>& p1, 
+      const pair<Region*,unsigned long long>& p2)
+  {
+    return (p1.second >= p2.second);
+  }
 };
 
 void RAIn::printOverallStats(ostream& stats_f)
@@ -472,26 +473,26 @@ void RAIn::printOverallStats(ostream& stats_f)
   stats_f << "interp_dyn_inst_count" << "," << nte_freq << ",Freq. of instruction emulated by interpretation" << endl;
   stats_f << "avg_dyn_reg_size" << "," << 
     (double) total_reg_freq / (double) total_reg_entries 
-	  << "," << "Average dynamic region size." << endl;
+    << "," << "Average dynamic region size." << endl;
   stats_f << "avg_stat_reg_size" << "," << 
     (double) total_stat_reg_size / (double) regions.size() 
-	  << "," << "Average static region size." << endl;
+    << "," << "Average static region size." << endl;
   stats_f << "dyn_reg_coverage" << "," << 
     (double) total_reg_freq / (double) (total_reg_freq + nte_freq)
-	  << "," << "Dynamic region coverage." << endl;
+    << "," << "Dynamic region coverage." << endl;
   //stats_f << "stat_reg_coverage" << "," << 
   //  (double) total_reg_freq / (double) (total_reg_freq + total_stat_instr_count)
   //	  << "Static region coverage: reg_stat_instr_count / (reg_stat_instr_count+total_stat_instr_count)" << endl;
   stats_f << "code_duplication" << "," << 
     (double) total_stat_reg_size / (double) total_unique_instrs
-	  << "," << "Region code duplication" << endl;
+    << "," << "Region code duplication" << endl;
   stats_f << "completion_ratio" << "," << 
     (double) total_reg_main_exits / (double) total_reg_entries
-	  << "," << "Completion Ratio" << endl;
+    << "," << "Completion Ratio" << endl;
   stats_f << "90_cover_set_regs" << "," << _90_cover_set_regs 
-	  << "," << "minumun number of regions to cover 90% of dynamic execution" << endl;
+    << "," << "minumun number of regions to cover 90% of dynamic execution" << endl;
   stats_f << "90_cover_set_instrs" << "," << _90_cover_set_instrs 
-	  << "," << "minumun number of static instructions on regions to cover 90% of dynamic execution" << endl;
+    << "," << "minumun number of static instructions on regions to cover 90% of dynamic execution" << endl;
 
   // Total number of regions (number_of_regions) = regions.size()
   // 90% cover-set (90_cover_set) = 
@@ -504,21 +505,21 @@ void RAIn::printOverallStats(ostream& stats_f)
 void RAIn::printRegionDOT(Region* region, ostream& reg)
 {
   reg << "digraph G{" << endl;
-  
+
   map<Region::Node*,unsigned> node_id;
   unsigned id_gen = 1;
   // For each node.
   reg << "/* nodes */" << endl;
   for (list<Region::Node*>::const_iterator nit = region->nodes.begin(); 
-       nit != region->nodes.end(); nit++) {
+      nit != region->nodes.end(); nit++) {
     Region::Node* n = *nit;
     node_id[n] = id_gen++;
-    reg << "  n" << node_id[n] << " [label=\"0x" << setbase(16) << n->getAddress() << "\"]" << endl;
+    reg << "  n" << node_id[n] << " [label=\"0x" << n->getAddress() << "\"]" << endl;
   }
 
   reg << "/* edges */" << endl;
   for (list<Region::Node*>::const_iterator nit = region->nodes.begin(); 
-       nit != region->nodes.end(); nit++) {
+      nit != region->nodes.end(); nit++) {
     Region::Node* n = *nit;
     // For each out edge.
     for (Region::EdgeListItem* i = n->out_edges; i; i=i->next) {
@@ -531,7 +532,7 @@ void RAIn::printRegionDOT(Region* region, ostream& reg)
       reg << "n" << node_id[edg->src] << " -> " << "n" << node_id[edg->tgt] << ";" << endl;
     }
   }
-  
+
   reg << "}" << endl;
 
 }

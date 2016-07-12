@@ -22,8 +22,7 @@
 #define RF_TECHNIQUES_H
 
 #include "rain.h"
-#include "regionrecorder.h"
-#include "regionmanager.h"
+#include <unordered_map>
 
 //#define DEBUG_MSGS
 
@@ -44,73 +43,73 @@ namespace rf_technique {
   class NET : public rain::RF_Technique
   {
   public:
-    
-    NET() : recording_NET(false),last_addr (0)
-      {}
-    
+
+    NET() : recording(false),last_addr (0)
+    {}
+
     void process(unsigned long long cur_addr, char cur_opcode[16], char unsigned cur_length, 
-		 unsigned long long nxt_addr, char nxt_opcode[16], char unsigned nxt_length);
-    
+        unsigned long long nxt_addr, char nxt_opcode[16], char unsigned nxt_length);
+
     void finish();
 
-  private:
+  protected:
 
-    bool recording_NET;
+    bool recording;
 
     unsigned long long last_addr;
 
     /** Instruction hotness profiler. */
-#define HOT_THRESHOLD 50
+    #define HOT_THRESHOLD 50
     struct profiler_t {
       map<unsigned long long, unsigned long long> instr_freq_counter;
-      
+
       /** Update profile information. */
       void update(unsigned long long addr) {
-	map<unsigned long long, unsigned long long>::iterator it = 
-	  instr_freq_counter.find(addr);
-	if (it == instr_freq_counter.end()) {
-	  RF_DBG_MSG("profiling: freq[" << "0x" << std::setbase(16) << addr << "] = 1" << endl);
-	  instr_freq_counter[addr] = 1;
-	}
-	else {
-	  it->second++;
-	  RF_DBG_MSG("profiling: freq[" << "0x" << std::setbase(16) << addr << "] = " << it->second << endl);
-	}
+        map<unsigned long long, unsigned long long>::iterator it = 
+          instr_freq_counter.find(addr);
+        if (it == instr_freq_counter.end()) {
+          RF_DBG_MSG("profiling: freq[" << "0x" << std::setbase(16) << addr << "] = 1" << endl);
+          instr_freq_counter[addr] = 1;
+        }
+        else {
+          it->second++;
+          RF_DBG_MSG("profiling: freq[" << "0x" << std::setbase(16) << addr << "] = " << it->second << endl);
+        }
       }
 
       /** Check whether instruction is already hot. */
       bool is_hot(unsigned long long addr) {
-	map<unsigned long long, unsigned long long>::iterator it = 
-	  instr_freq_counter.find(addr);
-	if (it != instr_freq_counter.end())
-	  return (it->second > HOT_THRESHOLD);
-	else
-	  return false;
+        map<unsigned long long, unsigned long long>::iterator it = 
+          instr_freq_counter.find(addr);
+        if (it != instr_freq_counter.end())
+          return (it->second >= HOT_THRESHOLD);
+        else
+          return false;
       }
     } profiler;
 
     /** Buffer to record new NET regions. */
     struct recording_buffer_t {
-      
+
       /** List of instruction addresses. */
       list<unsigned long long> addresses;
-      
+
       void reset() { addresses.clear(); }
 
       void append(unsigned long long addr) { addresses.push_back(addr); }
 
       bool contains_address(unsigned long long addr)
       {
-	list<unsigned long long>::iterator it;
-	for (it = addresses.begin(); it != addresses.end(); it++) {
-	  if ( (*it) == addr) 
-	    return true;
-	}
-	return false;
+        list<unsigned long long>::iterator it;
+        for (it = addresses.begin(); it != addresses.end(); it++) {
+          if ( (*it) == addr) 
+            return true;
+        }
+        return false;
       }
     } recording_buffer;
 
-    void buildNETRegion();
+    void buildRegion();
 
     bool switched_mode(rain::Region::Edge* edg)
     {
@@ -122,6 +121,22 @@ namespace rf_technique {
       return (is_system_instr(src) != is_system_instr(tgt));
     }
 
+  };
+
+  /** 
+   * Class to evaluate the Last-Executed Iteration (LEI) region formation
+   * technique.
+   */
+  class LEI : public NET
+  {
+  public:
+    void process(unsigned long long cur_addr, char cur_opcode[16], char unsigned cur_length, 
+        unsigned long long nxt_addr, char nxt_opcode[16], char unsigned nxt_length);
+
+  private:
+    recording_buffer_t history_buffer;
+
+    unordered_map<unsigned long long int, bool> all_nodes_recorded;
   };
 
 }; // namespace rf_technique

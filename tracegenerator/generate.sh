@@ -7,5 +7,3 @@ objcopy -O binary --only-section=.text.* .a.o .a.text
 objcopy -O binary --only-section=.data .a.o .a.data
 
 trace_tool.bin .a.text .a.data
-
-rm .a.*
