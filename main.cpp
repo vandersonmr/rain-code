@@ -115,12 +115,12 @@ int validate_arguments()
       return 1;
     }
     else {
-      rain::RF_Technique::set_system_threshold(LINUX_SYS_THRESHOLD);
+      rf_technique::RF_Technique::set_system_threshold(LINUX_SYS_THRESHOLD);
     }
   }
   else {
     if (wt.was_set()) {
-      rain::RF_Technique::set_system_threshold(WINDOWS_SYS_THRESHOLD);
+      rf_technique::RF_Technique::set_system_threshold(WINDOWS_SYS_THRESHOLD);
     }
     else {
       cerr << "Error: either -lt or -lw must be selected." << endl;
@@ -162,7 +162,7 @@ int main(int argc,char** argv)
     return 1;
   }
 
-  rain::RF_Technique* rf = NULL; 
+  rf_technique::RF_Technique* rf = NULL; 
   std::string chosenTechnique = technique.get_value();
 
   if (chosenTechnique == "lei") 

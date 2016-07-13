@@ -251,35 +251,6 @@ namespace rain {
     void printRegionsDOT(string&);
   };
 
-  class RF_Technique
-  {
-  public:
-
-    virtual void 
-      process(unsigned long long cur_addr, char cur_opcode[16], 
-          char unsigned cur_length, 
-          unsigned long long nxt_addr, char nxt_opcode[16], 
-          char unsigned nxt_length) = 0;
-
-    virtual void finish() = 0;
-
-    RAIn rain;
-
-    static void set_system_threshold(unsigned long long addr) {
-      system_threshold = addr;
-    }
-
-  protected:
-
-    bool is_system_instr(unsigned long long addr)
-    {
-      return (addr >= system_threshold);
-    }
-
-    static unsigned long long system_threshold;
-
-  };
-
 };
 
 #endif // RAIN_H

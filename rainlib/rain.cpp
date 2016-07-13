@@ -36,8 +36,6 @@ using namespace rain;
 #define DBG_ASSERT(cond)
 #endif
 
-unsigned long long RF_Technique::system_threshold;
-
 Region::Node::Node() : region(NULL), freq_counter(0), 
   out_edges(NULL), in_edges(NULL) 
 {}

@@ -118,49 +118,6 @@ void NET::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
 
 //rain.createEdge(rain.cur_node,rain.next_node);
 //rain.createOrUpdateEdge(rain.nte,rain.next_node);
-void NET::buildRegion()
-{
-  if (recording_buffer.addresses.size() == 0) {
-    cout << "WARNING: buildNETRegion() invoked, but recording_buffer is empty..." << endl;
-    return;
-  }
-
-  Region* r = rain.createRegion();
-  Region::Node* last_node = NULL;
-
-  list<unsigned long long>::iterator it;
-  for (it = recording_buffer.addresses.begin(); 
-      it != recording_buffer.addresses.end(); it++) {
-    unsigned long long addr = (*it);
-
-    Region::Node* node = new Region::Node(addr);
-    r->insertNode(node);
-
-    if (!last_node) {
-      // First node
-#ifdef DEBUG
-      // Make sure there were no region associated with the entry address.
-      assert(rain.region_entry_nodes.find(node->getAddress()) == 
-          rain.region_entry_nodes.end());
-#endif
-      rain.setEntry(node);
-    }
-    else {
-      // Successive nodes
-      r->createInnerRegionEdge(last_node, node);
-    }
-
-    last_node = node;
-  }
-  if (last_node) {
-    rain.setExit(last_node);
-  }
-
-  RF_DBG_MSG("Region " << r->id << " created. # nodes = " <<
-      r->nodes.size() << endl);
-
-  //recording_buffer.reset();
-}
 
 void NET::finish()
 {

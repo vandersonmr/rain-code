@@ -25,7 +25,6 @@
 #include <unordered_map>
 
 //#define DEBUG_MSGS
-
 #ifdef DEBUG_MSGS
 #include <iostream> // cerr
 #include <iomanip>  // setbase
@@ -34,32 +33,38 @@
 #define RF_DBG_MSG(msg)
 #endif
 
-namespace rf_technique {
 
-  /** 
-   * Class to evaluate the Next Executing Tail (NET) region formation
-   * technique.
-   */
-  class NET : public rain::RF_Technique
+namespace rf_technique {
+  static unsigned long long system_threshold;
+
+  class RF_Technique
   {
   public:
 
-    NET() : recording(false),last_addr (0)
-    {}
+#define HOT_THRESHOLD 50
 
-    void process(unsigned long long cur_addr, char cur_opcode[16], char unsigned cur_length, 
-        unsigned long long nxt_addr, char nxt_opcode[16], char unsigned nxt_length);
+    virtual void 
+      process(unsigned long long cur_addr, char cur_opcode[16], 
+          char unsigned cur_length, 
+          unsigned long long nxt_addr, char nxt_opcode[16], 
+          char unsigned nxt_length) = 0;
 
-    void finish();
+    virtual void finish() = 0;
+
+    rain::RAIn rain;
+
+    static void set_system_threshold(unsigned long long addr) {
+      system_threshold = addr;
+    }
 
   protected:
 
-    bool recording;
-
-    unsigned long long last_addr;
+    bool is_system_instr(unsigned long long addr)
+    {
+      return (addr >= system_threshold);
+    }
 
     /** Instruction hotness profiler. */
-    #define HOT_THRESHOLD 50
     struct profiler_t {
       map<unsigned long long, unsigned long long> instr_freq_counter;
 
@@ -88,7 +93,7 @@ namespace rf_technique {
       }
     } profiler;
 
-    /** Buffer to record new NET regions. */
+    /** Buffer to record new regions. */
     struct recording_buffer_t {
 
       /** List of instruction addresses. */
@@ -109,8 +114,6 @@ namespace rf_technique {
       }
     } recording_buffer;
 
-    void buildRegion();
-
     bool switched_mode(rain::Region::Edge* edg)
     {
       return switched_mode(edg->src->getAddress(), edg->tgt->getAddress());
@@ -121,22 +124,99 @@ namespace rf_technique {
       return (is_system_instr(src) != is_system_instr(tgt));
     }
 
+    void buildRegion()
+    {
+      if (recording_buffer.addresses.size() == 0) {
+        RF_DBG_MSG("WARNING: buildNETRegion() invoked, but recording_buffer is empty..." << endl);
+        return;
+      }
+
+      rain::Region* r = rain.createRegion();
+      rain::Region::Node* last_node = NULL;
+
+      list<unsigned long long>::iterator it;
+      for (it = recording_buffer.addresses.begin(); 
+          it != recording_buffer.addresses.end(); it++) {
+        unsigned long long addr = (*it);
+
+        rain::Region::Node* node = new rain::Region::Node(addr);
+        r->insertNode(node);
+
+        if (!last_node) {
+          // First node
+#ifdef DEBUG
+          // Make sure there were no region associated with the entry address.
+          assert(rain.region_entry_nodes.find(node->getAddress()) == 
+              rain.region_entry_nodes.end());
+#endif
+          rain.setEntry(node);
+        }
+        else {
+          // Successive nodes
+          r->createInnerRegionEdge(last_node, node);
+        }
+
+        last_node = node;
+      }
+      if (last_node) {
+        rain.setExit(last_node);
+      }
+
+      RF_DBG_MSG("Region " << r->id << " created. # nodes = " <<
+          r->nodes.size() << endl);
+
+      //recording_buffer.reset();
+    }
+  };
+
+  /** 
+   * Class to evaluate the Next Executing Tail (NET) region formation
+   * technique.
+   */
+  class NET : public RF_Technique
+  {
+  public:
+
+    NET() : recording(false),last_addr (0)
+    {}
+
+    void process(unsigned long long cur_addr, char cur_opcode[16], char unsigned cur_length, 
+        unsigned long long nxt_addr, char nxt_opcode[16], char unsigned nxt_length);
+
+    void finish();
+
+  private:
+
+    bool recording;
+    unsigned long long last_addr;
+
+    using RF_Technique::buildRegion;
   };
 
   /** 
    * Class to evaluate the Last-Executed Iteration (LEI) region formation
    * technique.
    */
-  class LEI : public NET
+  class LEI : public RF_Technique
   {
   public:
+
+    LEI() : recording(false), last_addr(0)
+    {}
+
     void process(unsigned long long cur_addr, char cur_opcode[16], char unsigned cur_length, 
         unsigned long long nxt_addr, char nxt_opcode[16], char unsigned nxt_length);
 
-  private:
-    recording_buffer_t history_buffer;
+    void finish() {};
 
+  private:
+
+    bool recording;
+    unsigned long long last_addr;
+    recording_buffer_t history_buffer;
     unordered_map<unsigned long long int, bool> all_nodes_recorded;
+
+    using RF_Technique::buildRegion;
   };
 
 }; // namespace rf_technique
