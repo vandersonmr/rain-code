@@ -32,7 +32,25 @@ using namespace rain;
 #define DBG_ASSERT(cond)
 #endif
 
-void LEI::process(unsigned long long cur_addr, char cur_opcode[16], char unsigned cur_length, 
+void TraceTree::expand(rain::Region::Node* header) {
+  rain::Region::Node* last_node = side_exit_node;
+
+  for (auto it = recording_buffer.addresses.begin();
+      it != recording_buffer.addresses.end(); it++) {
+
+    unsigned long long addr = (*it);
+
+    rain::Region::Node* node = new rain::Region::Node(addr);
+    side_exit_region->insertNode(node);
+
+    side_exit_region->createInnerRegionEdge(last_node, node);
+    last_node = node;
+  }
+
+  side_exit_region->createInnerRegionEdge(last_node, header);
+}
+
+void TraceTree::process(unsigned long long cur_addr, char cur_opcode[16], char unsigned cur_length, 
     unsigned long long nxt_addr, char nxt_opcode[16], char unsigned nxt_length)
 {
   // Execute TEA transition.
@@ -42,73 +60,106 @@ void LEI::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
   }
   rain.executeEdge(edg);
 
-  history_buffer.append(cur_addr);
-
   RF_DBG_MSG("0x" << setbase(16) << cur_addr << endl);
 
-  // Profile instructions to detect hot code
-  bool profile_target_instr = false;
-  if ((edg->src->region != NULL) && edg->tgt == rain.nte) {
-    // Profile NTE instructions that are target of regions instructions
-    // Region exits
-    profile_target_instr = true;
-  }
-  else if ((edg == rain.nte_loop_edge) && (cur_addr <= last_addr)) {
-    // Profile NTE instructions that are target of backward jumps
-    profile_target_instr = true;
+  if (edg->src->region != NULL && edg->tgt == rain.nte && !recording) {
+    is_side_exit = true;
+    side_exit_region = edg->src->region;
+    side_exit_node = edg->src;
+    recording = true;
+    recording_buffer.reset();
   }
 
-  if (profile_target_instr) {
+  // Profile instructions to detect hot code
+  if ((edg == rain.nte_loop_edge) && (cur_addr <= last_addr)) {
     profiler.update(cur_addr);
     if (profiler.is_hot(cur_addr) && !recording) {
       // Start region formation....
       RF_DBG_MSG("0x" << setbase(16) << cur_addr << " is hot. Start Region formation." << endl);
-      recording = true;
       recording_buffer.reset();
+      recording = true;
     }
   }
 
-  if (recording) {
-    bool paused = false;
+  if (recording && is_side_exit) {
+    bool outLimit = false;
+    if (recording_buffer.addresses.size() > LIMIT_SIDE_NODE_BRANCH
+        || inner_loop_trial > 3) {
+      is_side_exit = false;
+      recording = false;
+      outLimit = true;
+      inner_loop_trial = 0;
+    }
 
-    unsigned long long first_addr = -1;
-    auto rit = history_buffer.addresses.rbegin();
-    for (; rit != history_buffer.addresses.rend(); ++rit) { 
-      unsigned long long int addr = (*rit);
-      if (first_addr == -1) {
-        first_addr = addr;
-        continue;
-      }
-
-      if (all_nodes_recorded.count(addr) != 0) {
-        recording_buffer.reset();
-        break;
-      }
-
-      if (recording_buffer.addresses.size() > 1) {
-        if (switched_mode(recording_buffer.addresses.back(), addr)) {
-            paused = !paused;
+    if (!outLimit) {
+      bool isInHeader = false;
+      rain::Region::Node* header = NULL;
+      for (auto it : side_exit_region->entry_nodes) {
+        if (it->getAddress() == cur_addr) {
+          isInHeader = true;
+          header = it;
+          break;
         }
       }
 
-      if (!paused) 
-        recording_buffer.append(addr);
+      if (isInHeader)  {
+        expand(header);
 
-      if (addr == first_addr)
-        break;
+        is_side_exit = false;
+        recording = false;
+      }
+      else {
+        if (recording_buffer.contains_address(cur_addr)) 
+          inner_loop_trial += 1;
+        // Record target instruction on region formation buffer
+        RF_DBG_MSG("Recording " << "0x" << setbase(16) <<
+            cur_addr << " on the recording buffer" << endl);
+        recording_buffer.append(cur_addr); //, cur_opcode, cur_length);
+      }
     }
 
-    if (recording_buffer.addresses.size() != 0) {
-      for (auto addr : recording_buffer.addresses) 
-        all_nodes_recorded[addr] = true;;
+  } 
+  else if (recording) {
+    // Check for stop conditions.
+    // DBG_ASSERT(edg->src == rain.nte);
+    bool stopRecording = false;
+    if (edg->tgt != rain.nte) {
+      // Found region entry
+      RF_DBG_MSG("Stopped recording because found a region entry." << endl);
+      stopRecording = true;
+    }
+    else if (recording_buffer.contains_address(last_addr) && (cur_addr <= last_addr)) {
+      stopRecording = true;
+    }
+    else if (recording_buffer.contains_address(cur_addr)) {
+      // Hit an instruction already recorded (loop)
+      RF_DBG_MSG("Stopped recording because isnt " << "0x" << setbase(16) << 
+          cur_addr << " is already included on the recording buffer." << endl);
+      stopRecording = true;
+    }
+    else if (recording_buffer.addresses.size() > 1) {
+      // Only check if buffer alreay has more than one instruction recorded.
+      if (switched_mode(recording_buffer.addresses.back(), cur_addr)) {
+        // switched between user and system mode
+        RF_DBG_MSG("Stopped recording because processor switched mode: 0x" << setbase(16) << 
+            last_addr << " -> 0x" << cur_addr << endl);
+        stopRecording = true;
+      }
+    }
 
-      recording_buffer.addresses.reverse();
-
-      RF_DBG_MSG("Stop buffering and build new LEI region." << endl);
+    if (stopRecording) {
+      // Create region and add to RAIn TEA
+      // merge both -> save to recording
+      RF_DBG_MSG("Stop buffering and build new NET region." << endl);
       buildRegion();
-      history_buffer.reset();
+      recording = false;
     }
-    recording = false;
+    else {
+      // Record target instruction on region formation buffer
+      RF_DBG_MSG("Recording " << "0x" << setbase(16) <<
+          cur_addr << " on the recording buffer" << endl);
+      recording_buffer.append(cur_addr); //, cur_opcode, cur_length);
+    }
   }
 
   last_addr = cur_addr;

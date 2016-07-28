@@ -200,7 +200,7 @@ Region::Edge* RAIn::queryNext(unsigned long long next_ip)
 {
   if (cur_node == nte) {
     // NTE node (treated separatedely for efficiency reasons)
-    map<unsigned long long, Region::Edge*>::iterator it = 
+    map<unsigned long long, Region::Edge*>::iterator it =
       nte_out_edges_map.find(next_ip);
     if (it != nte_out_edges_map.end())
       return it->second; // Return existing NTE out edge

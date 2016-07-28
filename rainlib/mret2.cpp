@@ -32,7 +32,65 @@ using namespace rain;
 #define DBG_ASSERT(cond)
 #endif
 
-void LEI::process(unsigned long long cur_addr, char cur_opcode[16], char unsigned cur_length, 
+void MRET2::mergePhases()
+{
+	unsigned long long addr1, addr2, end1, end2;
+	unsigned i = 0, j = 0;
+
+  recording_buffer_t recording_buffer_aux;
+
+	if(0 == recording_buffer.addresses.size() || 0 == recording_buffer_tmp.addresses.size()){
+    recording_buffer.reset();
+		return;
+	}
+	
+	addr1 = recording_buffer_tmp.addresses[i];
+	addr2 = recording_buffer.addresses[i];
+
+	end1 = recording_buffer_tmp.addresses.back();
+	end2 = recording_buffer.addresses.back();
+	
+	while(addr1 != end1 && addr2 != end2){
+		if(addr1 < addr2){
+			i++;
+			addr1 = recording_buffer_tmp.addresses[i];
+		}
+		else if(addr2 < addr1){
+			j++;
+			addr2 = recording_buffer.addresses[j];
+		}
+		else{
+			recording_buffer_aux.append(recording_buffer_tmp.addresses[i]);
+			i++;
+			j++;
+			addr1 = recording_buffer_tmp.addresses[i];
+			addr2 = recording_buffer.addresses[j];
+		}
+	}
+
+	if(addr1 == addr2)
+		recording_buffer_aux.append(recording_buffer_tmp.addresses[i]);
+
+  recording_buffer.addresses = recording_buffer_aux.addresses;
+}
+
+unsigned int MRET2::getStoredIndex(unsigned long long addr) {
+  for (int i = 0; i < 5; i++) 
+    if (stored[i].addresses.size() > 0 && stored[i].addresses[0] == addr) return i;
+  return 0;
+}
+
+unsigned MRET2::getPhase(unsigned long long addr) {
+  if (phases.count(addr) == 0) phases[addr] = 1;
+  return phases[addr];
+}
+
+bool MRET2::hasRecorded(unsigned long long addr) {
+  if (recorded.count(addr) == 0) return false;
+  return recorded[addr];
+}
+
+void MRET2::process(unsigned long long cur_addr, char cur_opcode[16], char unsigned cur_length,
     unsigned long long nxt_addr, char nxt_opcode[16], char unsigned nxt_length)
 {
   // Execute TEA transition.
@@ -41,8 +99,6 @@ void LEI::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
     edg = rain.addNext(cur_addr);
   }
   rain.executeEdge(edg);
-
-  history_buffer.append(cur_addr);
 
   RF_DBG_MSG("0x" << setbase(16) << cur_addr << endl);
 
@@ -60,56 +116,72 @@ void LEI::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
 
   if (profile_target_instr) {
     profiler.update(cur_addr);
-    if (profiler.is_hot(cur_addr) && !recording) {
-      // Start region formation....
+    if (profiler.is_hot(cur_addr) && !recording && !hasRecorded(cur_addr)) {
       RF_DBG_MSG("0x" << setbase(16) << cur_addr << " is hot. Start Region formation." << endl);
+      // Start region formation....
+      if (getPhase(cur_addr) == 1) {
+        profiler.reset(cur_addr);
+      }
+      header = cur_addr;
       recording = true;
-      recording_buffer.reset();
     }
   }
 
   if (recording) {
-    bool paused = false;
-
-    unsigned long long first_addr = -1;
-    auto rit = history_buffer.addresses.rbegin();
-    for (; rit != history_buffer.addresses.rend(); ++rit) { 
-      unsigned long long int addr = (*rit);
-      if (first_addr == -1) {
-        first_addr = addr;
-        continue;
+    // Check for stop conditions.
+    // DBG_ASSERT(edg->src == rain.nte);
+    bool stopRecording = false;
+    if (edg->tgt != rain.nte) {
+      // Found region entry
+      RF_DBG_MSG("Stopped recording because found a region entry." << endl);
+      stopRecording = true;
+    }
+    else if (recording_buffer.contains_address(last_addr) && (cur_addr <= last_addr)) {
+      stopRecording = true;
+    }
+    else if (recording_buffer.contains_address(cur_addr)) {
+      // Hit an instruction already recorded (loop)
+      RF_DBG_MSG("Stopped recording because isnt " << "0x" << setbase(16) << 
+          cur_addr << " is already included on the recording buffer." << endl);
+      stopRecording = true;
+    }
+    else if (recording_buffer.addresses.size() > 1) {
+      // Only check if buffer alreay has more than one instruction recorded.
+      if (switched_mode(recording_buffer.addresses.back(), cur_addr)) {
+        //if (!mix_usr_sys.was_set()) {
+          // switched between user and system mode
+          RF_DBG_MSG("Stopped recording because processor switched mode: 0x" << setbase(16) << 
+              last_addr << " -> 0x" << cur_addr << endl);
+          stopRecording = true;
+        //}
       }
+    }
 
-      if (all_nodes_recorded.count(addr) != 0) {
+    if (stopRecording) {
+      RF_DBG_MSG("Stop buffering and build new NET region." << endl);
+      if (getPhase(header) == 1) {
+        stored[stored_index].addresses = recording_buffer.addresses;
         recording_buffer.reset();
-        break;
+
+        stored_index++;
+        if (stored_index == 5) stored_index = 0;
+
+        phases[header] = 2;
+      } else {
+        // Create region and add to RAIn TEA
+        recording_buffer_tmp.addresses = stored[getStoredIndex(header)].addresses;
+        mergePhases();
+        buildRegion();
+        recording_buffer.reset();
+        phases[header] = 1;
+        recorded[header] = true;
       }
-
-      if (recording_buffer.addresses.size() > 1) {
-        if (switched_mode(recording_buffer.addresses.back(), addr)) {
-            paused = !paused;
-        }
-      }
-
-      if (!paused) 
-        recording_buffer.append(addr);
-
-      if (addr == first_addr)
-        break;
+      recording = false;
+    } else {
+      recording_buffer.append(cur_addr);
     }
-
-    if (recording_buffer.addresses.size() != 0) {
-      for (auto addr : recording_buffer.addresses) 
-        all_nodes_recorded[addr] = true;;
-
-      recording_buffer.addresses.reverse();
-
-      RF_DBG_MSG("Stop buffering and build new LEI region." << endl);
-      buildRegion();
-      history_buffer.reset();
-    }
-    recording = false;
   }
 
   last_addr = cur_addr;
 }
+

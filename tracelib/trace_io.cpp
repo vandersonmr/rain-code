@@ -22,6 +22,10 @@
 #include <sstream>  // stringstream
 #include <stdio.h>  // pclose
 #include <stdlib.h> // exit
+#include <thread>
+#include <chrono>
+#include <errno.h>
+#include <cstring>
 
 using namespace trace_io;
 using namespace std;
@@ -36,6 +40,7 @@ raw_input_pipe_t::~raw_input_pipe_t()
     read, return true otherwise. */
 bool raw_input_pipe_t::get_next_item(trace_item_t& item)
 {
+start:
   if (curr_idx > end_idx) 
     return false; // no more items to read
 
@@ -44,10 +49,13 @@ bool raw_input_pipe_t::get_next_item(trace_item_t& item)
     ostringstream str;
     str << "gzip -cd " << basename << "." << curr_idx << ".bin.gz";
     sys_cmd = str.str();
-    if ( (current_fh = popen(sys_cmd.c_str(), "r")) == NULL) {
-      cerr << "Error: could not open the input pipe (" << sys_cmd << ")." << endl;
+    cout << "opening: " << curr_idx << endl;
+    while( (current_fh = popen(sys_cmd.c_str(), "r")) == NULL) {
+      cerr << "Error: (" << strerror(errno) << ") could not open the input pipe (" << sys_cmd << ")." << endl;
+
+      std::this_thread::sleep_for(std::chrono::seconds(100));
       // TODO: handle errors gracefully (raise exception...)
-      exit(1);
+      //exit(1);
     }
   }
 

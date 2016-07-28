@@ -45,8 +45,8 @@ namespace trace_io {
     unsigned char      length;
     unsigned char      mem_size;
 
-    bool is_mem_read() { return (type == 0); } 
-    bool is_mem_write() { return (type == 1); } 
+    bool is_mem_read() { return (type == 0); }
+    bool is_mem_write() { return (type == 1); }
     bool is_instruction() { return (type == 2); }
   };
 

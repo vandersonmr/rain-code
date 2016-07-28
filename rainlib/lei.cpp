@@ -21,6 +21,7 @@
 #include "rf_techniques.h"
 #include <iostream>
 #include "arglib.h"
+#include <algorithm>
 
 using namespace rf_technique;
 using namespace rain;
@@ -32,6 +33,13 @@ using namespace rain;
 #define DBG_ASSERT(cond)
 #endif
 
+bool LEI::hasRecorded(unsigned long long addr) {
+  if (recorded.count(addr) == 0) 
+    return false;
+  return true;
+}
+
+int indx = 0;
 void LEI::process(unsigned long long cur_addr, char cur_opcode[16], char unsigned cur_length, 
     unsigned long long nxt_addr, char nxt_opcode[16], char unsigned nxt_length)
 {
@@ -42,6 +50,10 @@ void LEI::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
   }
   rain.executeEdge(edg);
 
+  if (history_buffer.addresses.size() > 100000000)
+    history_buffer.addresses.erase(
+        history_buffer.addresses.begin(), history_buffer.addresses.begin()+100000);
+  
   history_buffer.append(cur_addr);
 
   RF_DBG_MSG("0x" << setbase(16) << cur_addr << endl);
@@ -80,7 +92,7 @@ void LEI::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
         continue;
       }
 
-      if (all_nodes_recorded.count(addr) != 0) {
+      if (hasRecorded(addr)) {
         recording_buffer.reset();
         break;
       }
@@ -99,14 +111,18 @@ void LEI::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
     }
 
     if (recording_buffer.addresses.size() != 0) {
-      for (auto addr : recording_buffer.addresses) 
-        all_nodes_recorded[addr] = true;;
-
-      recording_buffer.addresses.reverse();
+      std::reverse(recording_buffer.addresses.begin(), recording_buffer.addresses.end());
 
       RF_DBG_MSG("Stop buffering and build new LEI region." << endl);
+
+      if (recording_buffer.addresses.size() > 0) {
+        recorded[recording_buffer.addresses[0]] = true;
+        history_buffer.addresses.erase(
+            history_buffer.addresses.end()-recording_buffer.addresses.size(),
+            history_buffer.addresses.end());
+      }
+
       buildRegion();
-      history_buffer.reset();
     }
     recording = false;
   }

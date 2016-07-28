@@ -24,25 +24,85 @@
 #include "rain.h"
 #include <unordered_map>
 
+#include <vector>
+#include <deque>
+
+#include <cassert>
+#include <iostream> // cerr
+
 //#define DEBUG_MSGS
 #ifdef DEBUG_MSGS
-#include <iostream> // cerr
 #include <iomanip>  // setbase
 #define RF_DBG_MSG(msg) std::cerr << msg
 #else
 #define RF_DBG_MSG(msg)
 #endif
 
-
 namespace rf_technique {
+
+#define HOT_THRESHOLD 25
   static unsigned long long system_threshold;
+
+  /** Instruction hotness profiler. */
+  struct profiler_t {
+    map<unsigned long long, unsigned long long> instr_freq_counter;
+
+    /** Update profile information. */
+    void update(unsigned long long addr) {
+      map<unsigned long long, unsigned long long>::iterator it = 
+        instr_freq_counter.find(addr);
+      if (it == instr_freq_counter.end()) {
+        RF_DBG_MSG("profiling: freq[" << "0x" << std::setbase(16) << addr << "] = 1" << endl);
+        instr_freq_counter[addr] = 1;
+      }
+      else {
+        it->second++;
+        RF_DBG_MSG("profiling: freq[" << "0x" << std::setbase(16) << addr << "] = " << it->second << endl);
+      }
+    }
+
+    void reset(unsigned long long addr) {
+      map<unsigned long long, unsigned long long>::iterator it = 
+        instr_freq_counter.find(addr);
+      assert(it != instr_freq_counter.end() && "Trying to reset a header (addr) that doesn't exist!");
+      it->second = 3;
+    }
+
+    /** Check whether instruction is already hot. */
+    bool is_hot(unsigned long long addr) {
+      map<unsigned long long, unsigned long long>::iterator it = 
+        instr_freq_counter.find(addr);
+      if (it != instr_freq_counter.end())
+        return (it->second >= HOT_THRESHOLD);
+      else
+        return false;
+    }
+  };
+
+  /** Buffer to record new regions. */
+  struct recording_buffer_t {
+
+    /** List of instruction addresses. */
+    vector<unsigned long long> addresses;
+
+    void reset() { addresses.clear(); }
+
+    void append(unsigned long long addr) { addresses.push_back(addr); }
+
+    bool contains_address(unsigned long long addr)
+    {
+      vector<unsigned long long>::iterator it;
+      for (it = addresses.begin(); it != addresses.end(); it++) {
+        if ( (*it) == addr) 
+          return true;
+      }
+      return false;
+    }
+  };
 
   class RF_Technique
   {
   public:
-
-#define HOT_THRESHOLD 50
-
     virtual void 
       process(unsigned long long cur_addr, char cur_opcode[16], 
           char unsigned cur_length, 
@@ -64,56 +124,6 @@ namespace rf_technique {
       return (addr >= system_threshold);
     }
 
-    /** Instruction hotness profiler. */
-    struct profiler_t {
-      map<unsigned long long, unsigned long long> instr_freq_counter;
-
-      /** Update profile information. */
-      void update(unsigned long long addr) {
-        map<unsigned long long, unsigned long long>::iterator it = 
-          instr_freq_counter.find(addr);
-        if (it == instr_freq_counter.end()) {
-          RF_DBG_MSG("profiling: freq[" << "0x" << std::setbase(16) << addr << "] = 1" << endl);
-          instr_freq_counter[addr] = 1;
-        }
-        else {
-          it->second++;
-          RF_DBG_MSG("profiling: freq[" << "0x" << std::setbase(16) << addr << "] = " << it->second << endl);
-        }
-      }
-
-      /** Check whether instruction is already hot. */
-      bool is_hot(unsigned long long addr) {
-        map<unsigned long long, unsigned long long>::iterator it = 
-          instr_freq_counter.find(addr);
-        if (it != instr_freq_counter.end())
-          return (it->second >= HOT_THRESHOLD);
-        else
-          return false;
-      }
-    } profiler;
-
-    /** Buffer to record new regions. */
-    struct recording_buffer_t {
-
-      /** List of instruction addresses. */
-      list<unsigned long long> addresses;
-
-      void reset() { addresses.clear(); }
-
-      void append(unsigned long long addr) { addresses.push_back(addr); }
-
-      bool contains_address(unsigned long long addr)
-      {
-        list<unsigned long long>::iterator it;
-        for (it = addresses.begin(); it != addresses.end(); it++) {
-          if ( (*it) == addr) 
-            return true;
-        }
-        return false;
-      }
-    } recording_buffer;
-
     bool switched_mode(rain::Region::Edge* edg)
     {
       return switched_mode(edg->src->getAddress(), edg->tgt->getAddress());
@@ -123,6 +133,9 @@ namespace rf_technique {
     {
       return (is_system_instr(src) != is_system_instr(tgt));
     }
+
+    profiler_t profiler;
+    recording_buffer_t recording_buffer;
 
     void buildRegion()
     {
@@ -134,9 +147,9 @@ namespace rf_technique {
       rain::Region* r = rain.createRegion();
       rain::Region::Node* last_node = NULL;
 
-      list<unsigned long long>::iterator it;
-      for (it = recording_buffer.addresses.begin(); 
-          it != recording_buffer.addresses.end(); it++) {
+      vector<unsigned long long>::iterator it;
+      for (it = recording_buffer.addresses.begin();
+           it != recording_buffer.addresses.end(); it++) {
         unsigned long long addr = (*it);
 
         rain::Region::Node* node = new rain::Region::Node(addr);
@@ -164,8 +177,6 @@ namespace rf_technique {
 
       RF_DBG_MSG("Region " << r->id << " created. # nodes = " <<
           r->nodes.size() << endl);
-
-      //recording_buffer.reset();
     }
   };
 
@@ -178,7 +189,7 @@ namespace rf_technique {
   public:
 
     NET() : recording(false),last_addr (0)
-    {}
+    { std::cout << "Initing NET\n" << std::endl; }
 
     void process(unsigned long long cur_addr, char cur_opcode[16], char unsigned cur_length, 
         unsigned long long nxt_addr, char nxt_opcode[16], char unsigned nxt_length);
@@ -202,7 +213,7 @@ namespace rf_technique {
   public:
 
     LEI() : recording(false), last_addr(0)
-    {}
+    { std::cout << "Initing LEI\n" << std::endl; }
 
     void process(unsigned long long cur_addr, char cur_opcode[16], char unsigned cur_length, 
         unsigned long long nxt_addr, char nxt_opcode[16], char unsigned nxt_length);
@@ -214,12 +225,80 @@ namespace rf_technique {
     bool recording;
     unsigned long long last_addr;
     recording_buffer_t history_buffer;
-    unordered_map<unsigned long long int, bool> all_nodes_recorded;
+    unordered_map<unsigned long long, bool> recorded;
+
+    bool hasRecorded(unsigned long long addr);
 
     using RF_Technique::buildRegion;
   };
 
-}; // namespace rf_technique
+  /** 
+   * Class to evaluate the Last-Executed Iteration (LEI) region formation
+   * technique.
+   */
+  class MRET2 : public RF_Technique
+  {
+  public:
 
+    MRET2() : recording(false), last_addr(0), stored_index(0)
+    { std::cout << "Initing MRET2\n" << std::endl; }
+
+    void process(unsigned long long cur_addr, char cur_opcode[16], char unsigned cur_length, 
+        unsigned long long nxt_addr, char nxt_opcode[16], char unsigned nxt_length);
+
+    void finish() {};
+
+  private:
+
+    bool recording;
+    unsigned long long last_addr;
+    unsigned long long header;
+    unordered_map<unsigned long long, unsigned> phases;
+    unordered_map<unsigned long long, bool> recorded;
+
+    recording_buffer_t recording_buffer_tmp;
+
+    unsigned int stored_index;
+    recording_buffer_t stored[5];
+
+    using RF_Technique::buildRegion;
+
+    void mergePhases();
+    unsigned int getStoredIndex(unsigned long long addr);
+    unsigned getPhase(unsigned long long addr);
+    bool hasRecorded(unsigned long long addr);
+  };
+
+  /** 
+   * Class to evaluate the TraceTree (TT) region formation
+   * technique.
+   */
+  class TraceTree : public RF_Technique
+  {
+  public:
+    #define LIMIT_SIDE_NODE_BRANCH 990
+
+    TraceTree() : recording(false), last_addr(0), is_side_exit(false)
+    { std::cout << "Initing TraceTree\n" << std::endl; }
+
+    void process(unsigned long long cur_addr, char cur_opcode[16], char unsigned cur_length, 
+        unsigned long long nxt_addr, char nxt_opcode[16], char unsigned nxt_length);
+
+    void finish() {};
+
+  private:
+
+    bool is_side_exit;
+    rain::Region* side_exit_region;
+    rain::Region::Node* side_exit_node;
+
+    bool recording;
+    unsigned long long last_addr;
+    int inner_loop_trial = 0;
+
+    using RF_Technique::buildRegion;
+    void expand(rain::Region::Node*);
+  };
+}; // namespace rf_technique
 
 #endif  // RF_TECHNIQUES_H

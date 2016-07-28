@@ -167,6 +167,10 @@ int main(int argc,char** argv)
 
   if (chosenTechnique == "lei") 
     rf = new rf_technique::LEI();
+  else if (chosenTechnique == "mret2") 
+    rf = new rf_technique::MRET2();
+  else if (chosenTechnique == "tt")
+    rf = new rf_technique::TraceTree();
   else 
     rf = new rf_technique::NET();
 
