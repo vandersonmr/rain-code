@@ -324,7 +324,6 @@ unsigned long long Region::allNodesFreq() const
   for (list<Node*>::const_iterator it = nodes.begin(); it!=nodes.end(); it++) {
     c += (*it)->freq_counter;
   }
-  std::cout << std::endl;
   return c;
 }
 
@@ -412,7 +411,7 @@ void RAIn::printRegionsStats(ostream& stats_f)
 
 struct cov_less_than_key
 {
-  inline bool operator() (const pair<Region*,unsigned long long>& p1, 
+  inline bool operator() (const pair<Region*,unsigned long long>& p1,
       const pair<Region*,unsigned long long>& p2)
   {
     return (p1.second >= p2.second);
@@ -429,6 +428,8 @@ void RAIn::printOverallStats(ostream& stats_f)
   unsigned long long total_reg_oficial_exit = 0;
   map<unsigned long long,unsigned> unique_instrs;
   unsigned long long _90_cover_set_regs = 0;
+  unsigned long long _80_cover_set_regs = 0;
+  unsigned long long _70_cover_set_regs = 0;
   unsigned long long _90_cover_set_instrs = 0;
 
   vector< pair<Region*,unsigned long long> > region_cov;
@@ -439,8 +440,12 @@ void RAIn::printOverallStats(ostream& stats_f)
     total_stat_reg_size += r->nodes.size();
     total_reg_entries += r->externalEntriesFreq();
     total_reg_main_exits += r->mainExitsFreq();
-    total_reg_freq += r->allNodesFreq();
-    region_cov.push_back(pair<Region*,unsigned long long>(r,total_reg_freq));
+
+    unsigned long long allNodesFreq = r->allNodesFreq();
+    total_reg_freq += allNodesFreq;
+    if (allNodesFreq > 0)
+      region_cov.push_back(pair<Region*, unsigned long long>(r, allNodesFreq));
+
     list<Region::Node*>::const_iterator it;
     for (it=r->nodes.begin(); it!=r->nodes.end(); it++) {
       unique_instrs[(*it)->getAddress()] = 1;
@@ -452,12 +457,25 @@ void RAIn::printOverallStats(ostream& stats_f)
   // 90% cover set => sort by coverage (r->allNodesFreq())
   std::sort(region_cov.begin(), region_cov.end(), cov_less_than_key());
   vector< pair<Region*,unsigned long long> >::const_iterator rcit;
-  unsigned long long acc = 0; 
+  unsigned long long acc = 0;
   for (rcit=region_cov.begin(); rcit != region_cov.end(); rcit++) {
-    acc += rcit->second;
-    _90_cover_set_regs ++;
     _90_cover_set_instrs += rcit->first->nodes.size();
-    double coverage = (double) acc / (double) (total_reg_freq+nte_freq) ;
+
+    acc += rcit->second;
+    
+    double coverage = (double) acc / (double) (total_reg_freq+nte_freq);
+
+    if (coverage < 0.7) {
+      _70_cover_set_regs++;
+      _80_cover_set_regs++;
+      _90_cover_set_regs++;
+    } else if (coverage < 0.8) {
+      _80_cover_set_regs++;
+      _90_cover_set_regs++;
+    } else {
+      _90_cover_set_regs++;
+    }
+
     if (coverage > 0.9) {
       break;
     }
@@ -487,13 +505,17 @@ void RAIn::printOverallStats(ostream& stats_f)
   stats_f << "completion_ratio" << "," << 
     (double) total_reg_main_exits / (double) total_reg_entries
     << "," << "Completion Ratio" << endl;
-  stats_f << "90_cover_set_regs" << "," << _90_cover_set_regs 
+  stats_f << "70_cover_set_regs" << "," << _70_cover_set_regs
+    << "," << "minumun number of regions to cover 70% of dynamic execution" << endl;
+  stats_f << "80_cover_set_regs" << "," << _80_cover_set_regs
+    << "," << "minumun number of regions to cover 80% of dynamic execution" << endl;
+  stats_f << "90_cover_set_regs" << "," << _90_cover_set_regs
     << "," << "minumun number of regions to cover 90% of dynamic execution" << endl;
-  stats_f << "90_cover_set_instrs" << "," << _90_cover_set_instrs 
+  stats_f << "90_cover_set_instrs" << "," << _90_cover_set_instrs
     << "," << "minumun number of static instructions on regions to cover 90% of dynamic execution" << endl;
 
   // Total number of regions (number_of_regions) = regions.size()
-  // 90% cover-set (90_cover_set) = 
+  // 90% cover-set (90_cover_set) =
   // completion ratio (completion_ratio) = total_reg_main_exits / total_reg_entries 
   // code duplication (code_duplication)
   // avg static size  (av_stat_reg_size)
