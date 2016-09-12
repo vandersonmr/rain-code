@@ -98,7 +98,7 @@ int validate_arguments()
   }
 
   if (!technique.was_set()) {
-    cerr << "Error: you must provide the RF Technique: net or lei"
+    cerr << "Error: you must provide the RF Technique: net, lei, mret2, tt or lef"
       << "(use -h for help)" << endl;
     return 1;
   }
@@ -171,6 +171,8 @@ int main(int argc,char** argv)
     rf = new rf_technique::MRET2();
   else if (chosenTechnique == "tt")
     rf = new rf_technique::TraceTree();
+  else if (chosenTechnique == "lef")
+    rf = new rf_technique::LEF();
   else 
     rf = new rf_technique::NET();
 

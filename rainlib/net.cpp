@@ -20,6 +20,7 @@
  ***************************************************************************/
 #include "rf_techniques.h"
 #include <iostream>
+#include <iomanip>
 #include "arglib.h"
 
 using namespace rf_technique;
@@ -34,9 +35,11 @@ using namespace rain;
 
 clarg::argBool mix_usr_sys("-mix_NET",  "Allow user and system code in the same NET regions.");
 
+
 void NET::process(unsigned long long cur_addr, char cur_opcode[16], char unsigned cur_length, 
     unsigned long long nxt_addr, char nxt_opcode[16], char unsigned nxt_length)
 {
+
   // Execute TEA transition.
   Region::Edge* edg = rain.queryNext(cur_addr);
   if (!edg) {
@@ -89,12 +92,12 @@ void NET::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
     else if (recording_buffer.addresses.size() > 1) {
       // Only check if buffer alreay has more than one instruction recorded.
       if (switched_mode(recording_buffer.addresses.back(), cur_addr)) {
-        if (!mix_usr_sys.was_set()) {
+//        if (!mix_usr_sys.was_set()) {
           // switched between user and system mode
           RF_DBG_MSG("Stopped recording because processor switched mode: 0x" << setbase(16) << 
               last_addr << " -> 0x" << cur_addr << endl);
           stopRecording = true;
-        }
+//        }
       }
     }
 
@@ -113,7 +116,7 @@ void NET::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
     }
   }
 
-  last_addr = cur_addr;  
+  last_addr = cur_addr;
 }
 
 void NET::finish() {

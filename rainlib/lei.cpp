@@ -53,7 +53,7 @@ void LEI::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
   if (history_buffer.addresses.size() > 100000000)
     history_buffer.addresses.erase(
         history_buffer.addresses.begin(), history_buffer.addresses.begin()+100000);
-  
+
   history_buffer.append(cur_addr);
 
   RF_DBG_MSG("0x" << setbase(16) << cur_addr << endl);

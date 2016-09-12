@@ -427,9 +427,11 @@ void RAIn::printOverallStats(ostream& stats_f)
   unsigned long long nte_freq = nte->freq_counter;
   unsigned long long total_reg_oficial_exit = 0;
   map<unsigned long long,unsigned> unique_instrs;
-  unsigned long long _90_cover_set_regs = 0;
-  unsigned long long _80_cover_set_regs = 0;
   unsigned long long _70_cover_set_regs = 0;
+  unsigned long long _80_cover_set_regs = 0;
+  unsigned long long _90_cover_set_regs = 0;
+  unsigned long long _70_cover_set_instrs = 0;
+  unsigned long long _80_cover_set_instrs = 0;
   unsigned long long _90_cover_set_instrs = 0;
 
   vector< pair<Region*,unsigned long long> > region_cov;
@@ -458,25 +460,28 @@ void RAIn::printOverallStats(ostream& stats_f)
   std::sort(region_cov.begin(), region_cov.end(), cov_less_than_key());
   vector< pair<Region*,unsigned long long> >::const_iterator rcit;
   unsigned long long acc = 0;
+  unsigned long long cov_num_regs = 0;
+  unsigned long long cov_num_inst = 0;
   for (rcit=region_cov.begin(); rcit != region_cov.end(); rcit++) {
-    _90_cover_set_instrs += rcit->first->nodes.size();
-
     acc += rcit->second;
-    
     double coverage = (double) acc / (double) (total_reg_freq+nte_freq);
 
-    if (coverage < 0.7) {
-      _70_cover_set_regs++;
-      _80_cover_set_regs++;
-      _90_cover_set_regs++;
-    } else if (coverage < 0.8) {
-      _80_cover_set_regs++;
-      _90_cover_set_regs++;
-    } else {
-      _90_cover_set_regs++;
+    cov_num_inst += rcit->first->nodes.size();
+    cov_num_regs++;
+
+    if (coverage > 0.7 && _70_cover_set_regs == 0) {
+      _70_cover_set_instrs = cov_num_inst;
+      _70_cover_set_regs   = cov_num_regs;
+    }
+
+    if (coverage > 0.8 && _80_cover_set_regs == 0) {
+      _80_cover_set_instrs = cov_num_inst;
+      _80_cover_set_regs   = cov_num_regs;
     }
 
     if (coverage > 0.9) {
+      _90_cover_set_instrs = cov_num_inst;
+      _90_cover_set_regs = cov_num_regs;
       break;
     }
   }
@@ -511,6 +516,10 @@ void RAIn::printOverallStats(ostream& stats_f)
     << "," << "minumun number of regions to cover 80% of dynamic execution" << endl;
   stats_f << "90_cover_set_regs" << "," << _90_cover_set_regs
     << "," << "minumun number of regions to cover 90% of dynamic execution" << endl;
+  stats_f << "70_cover_set_instrs" << "," << _70_cover_set_instrs
+    << "," << "minumun number of static instructions on regions to cover 70% of dynamic execution" << endl;
+  stats_f << "80_cover_set_instrs" << "," << _80_cover_set_instrs
+    << "," << "minumun number of static instructions on regions to cover 80% of dynamic execution" << endl;
   stats_f << "90_cover_set_instrs" << "," << _90_cover_set_instrs
     << "," << "minumun number of static instructions on regions to cover 90% of dynamic execution" << endl;
 

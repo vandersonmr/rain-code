@@ -184,7 +184,7 @@ namespace rain {
 
     unsigned region_id_generator;
 
-  public:	
+  public:
 
     /** Map region identifiers to regions. */
     map<unsigned, Region*> regions;

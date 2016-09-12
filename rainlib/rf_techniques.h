@@ -137,11 +137,11 @@ namespace rf_technique {
     profiler_t profiler;
     recording_buffer_t recording_buffer;
 
-    void buildRegion()
+    rain::Region* buildRegion()
     {
       if (recording_buffer.addresses.size() == 0) {
         RF_DBG_MSG("WARNING: buildNETRegion() invoked, but recording_buffer is empty..." << endl);
-        return;
+        return NULL;
       }
 
       rain::Region* r = rain.createRegion();
@@ -177,6 +177,8 @@ namespace rf_technique {
 
       RF_DBG_MSG("Region " << r->id << " created. # nodes = " <<
           r->nodes.size() << endl);
+
+      return r;
     }
   };
 
@@ -188,7 +190,7 @@ namespace rf_technique {
   {
   public:
 
-    NET() : recording(false),last_addr (0)
+    NET() : recording(false), last_addr (0)
     { std::cout << "Initing NET\n" << std::endl; }
 
     void process(unsigned long long cur_addr, char cur_opcode[16], char unsigned cur_length, 
@@ -200,6 +202,33 @@ namespace rf_technique {
 
     bool recording;
     unsigned long long last_addr;
+
+    using RF_Technique::buildRegion;
+  };
+
+  /** 
+   * Class to evaluate the Last Executing Function (LEF) region formation
+   * technique.
+   */
+  class LEF : public RF_Technique
+  {
+  public:
+
+    LEF() : recording(false), merging(false), last_addr (0)
+    { std::cout << "Initing LEF\n" << std::endl; }
+
+    void process(unsigned long long cur_addr, char cur_opcode[16], char unsigned cur_length, 
+        unsigned long long nxt_addr, char nxt_opcode[16], char unsigned nxt_length);
+
+    void finish();
+
+  private:
+
+    bool merging;
+    bool recording;
+    unsigned long long last_addr;
+    
+    map<unsigned long long, bool> region_with_ret;
 
     using RF_Technique::buildRegion;
   };
