@@ -40,7 +40,7 @@
 
 namespace rf_technique {
 
-#define HOT_THRESHOLD 25
+  #define HOT_THRESHOLD 50
   static unsigned long long system_threshold;
 
   /** Instruction hotness profiler. */
@@ -268,6 +268,9 @@ namespace rf_technique {
   class MRET2 : public RF_Technique
   {
   public:
+    #define STORE_INDEX_SIZE 10000
+    #define MAX_INST_REG 1000
+
 
     MRET2() : recording(false), last_addr(0), stored_index(0)
     { std::cout << "Initing MRET2\n" << std::endl; }
@@ -288,7 +291,7 @@ namespace rf_technique {
     recording_buffer_t recording_buffer_tmp;
 
     unsigned int stored_index;
-    recording_buffer_t stored[5];
+    recording_buffer_t stored[STORE_INDEX_SIZE];
 
     using RF_Technique::buildRegion;
 

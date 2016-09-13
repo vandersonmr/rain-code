@@ -50,7 +50,7 @@ void LEI::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
   }
   rain.executeEdge(edg);
 
-  if (history_buffer.addresses.size() > 100000000)
+  if (history_buffer.addresses.size() > 1000000)
     history_buffer.addresses.erase(
         history_buffer.addresses.begin(), history_buffer.addresses.begin()+100000);
 
@@ -103,7 +103,7 @@ void LEI::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
         }
       }
 
-      if (!paused) 
+      //if (!paused) 
         recording_buffer.append(addr);
 
       if (addr == first_addr)

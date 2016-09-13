@@ -34,48 +34,48 @@ using namespace rain;
 
 void MRET2::mergePhases()
 {
-	unsigned long long addr1, addr2, end1, end2;
-	unsigned i = 0, j = 0;
+  unsigned long long addr1, addr2, end1, end2;
+  unsigned i = 0, j = 0;
 
   recording_buffer_t recording_buffer_aux;
 
-	if(0 == recording_buffer.addresses.size() || 0 == recording_buffer_tmp.addresses.size()){
+  if(0 == recording_buffer.addresses.size() || 0 == recording_buffer_tmp.addresses.size()) {
     recording_buffer.reset();
-		return;
-	}
-	
-	addr1 = recording_buffer_tmp.addresses[i];
-	addr2 = recording_buffer.addresses[i];
+    return;
+  }
 
-	end1 = recording_buffer_tmp.addresses.back();
-	end2 = recording_buffer.addresses.back();
-	
-	while(addr1 != end1 && addr2 != end2){
-		if(addr1 < addr2){
-			i++;
-			addr1 = recording_buffer_tmp.addresses[i];
-		}
-		else if(addr2 < addr1){
-			j++;
-			addr2 = recording_buffer.addresses[j];
-		}
-		else{
-			recording_buffer_aux.append(recording_buffer_tmp.addresses[i]);
-			i++;
-			j++;
-			addr1 = recording_buffer_tmp.addresses[i];
-			addr2 = recording_buffer.addresses[j];
-		}
-	}
+  addr1 = recording_buffer_tmp.addresses[i];
+  addr2 = recording_buffer.addresses[j];
 
-	if(addr1 == addr2)
-		recording_buffer_aux.append(recording_buffer_tmp.addresses[i]);
+  end1 = recording_buffer_tmp.addresses.back();
+  end2 = recording_buffer.addresses.back();
+
+  while(addr1 != end1 && addr2 != end2) {
+    if(addr1 < addr2) {
+      i++;
+      addr1 = recording_buffer_tmp.addresses[i];
+    }
+    else if(addr2 < addr1){
+      j++;
+      addr2 = recording_buffer.addresses[j];
+    }
+    else{
+      recording_buffer_aux.append(recording_buffer_tmp.addresses[i]);
+      i++;
+      j++;
+      addr1 = recording_buffer_tmp.addresses[i];
+      addr2 = recording_buffer.addresses[j];
+    }
+  }
+
+  if(addr1 == addr2)
+    recording_buffer_aux.append(recording_buffer_tmp.addresses[i]);
 
   recording_buffer.addresses = recording_buffer_aux.addresses;
 }
 
 unsigned int MRET2::getStoredIndex(unsigned long long addr) {
-  for (int i = 0; i < 5; i++) 
+  for (int i = 0; i < STORE_INDEX_SIZE; i++) 
     if (stored[i].addresses.size() > 0 && stored[i].addresses[0] == addr) return i;
   return 0;
 }
@@ -90,6 +90,9 @@ bool MRET2::hasRecorded(unsigned long long addr) {
   return recorded[addr];
 }
 
+int c1 = 0;
+int c2 = 0;
+int from = 0;
 void MRET2::process(unsigned long long cur_addr, char cur_opcode[16], char unsigned cur_length,
     unsigned long long nxt_addr, char nxt_opcode[16], char unsigned nxt_length)
 {
@@ -108,10 +111,12 @@ void MRET2::process(unsigned long long cur_addr, char cur_opcode[16], char unsig
     // Profile NTE instructions that are target of regions instructions
     // Region exits
     profile_target_instr = true;
+    from = 0;
   }
   else if ((edg == rain.nte_loop_edge) && (cur_addr <= last_addr)) {
     // Profile NTE instructions that are target of backward jumps
     profile_target_instr = true;
+    from = 1;
   }
 
   if (profile_target_instr) {
@@ -124,6 +129,8 @@ void MRET2::process(unsigned long long cur_addr, char cur_opcode[16], char unsig
       }
       header = cur_addr;
       recording = true;
+      if (from == 0) c1++;
+      else c2++;
     }
   }
 
@@ -145,6 +152,9 @@ void MRET2::process(unsigned long long cur_addr, char cur_opcode[16], char unsig
           cur_addr << " is already included on the recording buffer." << endl);
       stopRecording = true;
     }
+    else if (recording_buffer.addresses.size() > MAX_INST_REG) {
+      stopRecording = true;
+    }
     else if (recording_buffer.addresses.size() > 1) {
       // Only check if buffer alreay has more than one instruction recorded.
       if (switched_mode(recording_buffer.addresses.back(), cur_addr)) {
@@ -164,14 +174,14 @@ void MRET2::process(unsigned long long cur_addr, char cur_opcode[16], char unsig
         recording_buffer.reset();
 
         stored_index++;
-        if (stored_index == 5) stored_index = 0;
+        if (stored_index == STORE_INDEX_SIZE) stored_index = 0;
 
         phases[header] = 2;
       } else {
         // Create region and add to RAIn TEA
         recording_buffer_tmp.addresses = stored[getStoredIndex(header)].addresses;
         mergePhases();
-        buildRegion();
+        rain::Region* r = buildRegion();
         recording_buffer.reset();
         phases[header] = 1;
         recorded[header] = true;
