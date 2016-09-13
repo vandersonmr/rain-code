@@ -66,12 +66,11 @@ void TraceTree::process(unsigned long long cur_addr, char cur_opcode[16], char u
     is_side_exit = true;
     side_exit_region = edg->src->region;
     side_exit_node = edg->src;
-    recording = true;
     recording_buffer.reset();
+    recording = true;
   }
-
-  // Profile instructions to detect hot code
-  if ((edg == rain.nte_loop_edge) && (cur_addr <= last_addr)) {
+  else if ((edg == rain.nte_loop_edge) && (cur_addr <= last_addr)) {
+    // Profile instructions to detect hot code
     profiler.update(cur_addr);
     if (profiler.is_hot(cur_addr) && !recording) {
       // Start region formation....
@@ -109,7 +108,7 @@ void TraceTree::process(unsigned long long cur_addr, char cur_opcode[16], char u
         recording = false;
       }
       else {
-        if (recording_buffer.contains_address(cur_addr)) 
+        if (cur_addr >= nxt_addr)
           inner_loop_trial += 1;
         // Record target instruction on region formation buffer
         RF_DBG_MSG("Recording " << "0x" << setbase(16) <<
