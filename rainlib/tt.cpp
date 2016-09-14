@@ -140,9 +140,11 @@ void TraceTree::process(unsigned long long cur_addr, char cur_opcode[16], char u
       // Only check if buffer alreay has more than one instruction recorded.
       if (switched_mode(recording_buffer.addresses.back(), cur_addr)) {
         // switched between user and system mode
-        RF_DBG_MSG("Stopped recording because processor switched mode: 0x" << setbase(16) << 
-            last_addr << " -> 0x" << cur_addr << endl);
-        stopRecording = true;
+        if (!mix_usr_sys) {
+          RF_DBG_MSG("Stopped recording because processor switched mode: 0x" << setbase(16) << 
+              last_addr << " -> 0x" << cur_addr << endl);
+          stopRecording = true;
+        }
       }
     }
 

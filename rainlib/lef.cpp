@@ -32,12 +32,12 @@ using namespace rain;
 #define DBG_ASSERT(cond)
 #endif
 
-bool isRetInst(char cur_opcode[16]) {
+bool LEF::isRetInst(char cur_opcode[16]) {
   int opcode = (int) (unsigned char) cur_opcode[0];
   return (opcode == 195 || opcode == 194 || opcode == 202 || opcode == 203);
 }
 
-bool isCallInst(char cur_opcode[16]) {
+bool LEF::isCallInst(char cur_opcode[16]) {
   int opcode = (int) (unsigned char) cur_opcode[0];
   return (opcode == 232 || opcode == 154);
 }
@@ -51,8 +51,6 @@ void LEF::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
     edg = rain.addNext(cur_addr);
   }
   rain.executeEdge(edg);
-  //!TODO if both tgt and src from edg are in regions and the tgt is a ret region
-  // merge both regions in one
 
   RF_DBG_MSG("0x" << setbase(16) << cur_addr << endl);
 
@@ -86,15 +84,12 @@ void LEF::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
       // Found region entry
       RF_DBG_MSG("Stopped recording because found a region entry." << endl);
       stopRecording = true;
-      if (region_with_ret.count(edg->tgt->getAddress()) != 0)
-        merging = true;
     }
     else if (recording_buffer.contains_address(last_addr) && (cur_addr <= last_addr)) {
       stopRecording = true;
     }
     else if (isRetInst(cur_opcode)) {
       stopRecording = true;
-      region_with_ret.insert(pair<unsigned long long, bool>(recording_buffer.addresses.front(), true));
     }
     else if (recording_buffer.contains_address(cur_addr)) {
       // Hit an instruction already recorded (loop)
@@ -105,12 +100,12 @@ void LEF::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
     else if (recording_buffer.addresses.size() > 1) {
       // Only check if buffer alreay has more than one instruction recorded.
       if (switched_mode(recording_buffer.addresses.back(), cur_addr)) {
-//        if (!mix_usr_sys.was_set()) {
+        if (!mix_usr_sys) {
           // switched between user and system mode
           RF_DBG_MSG("Stopped recording because processor switched mode: 0x" << setbase(16) << 
               last_addr << " -> 0x" << cur_addr << endl);
           stopRecording = true;
-//        }
+        }
       }
     }
 
@@ -120,10 +115,6 @@ void LEF::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
         RF_DBG_MSG("Stop buffering and build new LEF region." << endl);
         recording = false;
         rain::Region* r = buildRegion();
-
-        if (merging) {
-          merging = false;
-        }
     }
     else {
       // Record target instruction on region formation buffer

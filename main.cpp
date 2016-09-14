@@ -43,12 +43,15 @@ clarg::argString overall_stats_fname("-overall_stats",
     "file name to dump overall statistics in CSV format", 
     "overall_stats.csv");
 
+clarg::argBool mix_usr_sys("-mix_NET",  "Allow user and system code in the same NET regions.");
+
 #define LINUX_SYS_THRESHOLD   0xB2D05E00         // 3000000000
 #define WINDOWS_SYS_THRESHOLD 0xF9CCD8A1C5080000 // 18000000000000000000 
 #define STR_VALUE(arg) #arg
 
 clarg::argBool lt("-lt", "linux trace. System/user address threshold = 0xB2D05E00");
 clarg::argBool wt("-wt", "windows trace. System/user address threshold = 0xF9CCD8A1C5080000");
+
 
 void usage(char* prg_name) 
 {
@@ -108,6 +111,13 @@ int validate_arguments()
       << "(use -h for help)" << endl;
     return 1;
   }
+  
+  if (mix_usr_sys.was_set()) {
+    rf_technique::RF_Technique::is_mix_usr_sys(true);
+  } else {
+    rf_technique::RF_Technique::is_mix_usr_sys(false);
+  }
+  
 
   if (lt.was_set()) {
     if (wt.was_set()) {

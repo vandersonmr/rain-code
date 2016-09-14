@@ -39,7 +39,8 @@ bool LEI::hasRecorded(unsigned long long addr) {
   return true;
 }
 
-int indx = 0;
+#define MAX_SIZE_HIST_BUFFER 1000000
+
 void LEI::process(unsigned long long cur_addr, char cur_opcode[16], char unsigned cur_length, 
     unsigned long long nxt_addr, char nxt_opcode[16], char unsigned nxt_length)
 {
@@ -50,11 +51,10 @@ void LEI::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
   }
   rain.executeEdge(edg);
 
-  if (history_buffer.addresses.size() > 1000000)
+  // Shrink history buffer so it doesn't exceed max size
+  if (history_buffer.addresses.size() > MAX_SIZE_HIST_BUFFER)
     history_buffer.addresses.erase(
         history_buffer.addresses.begin(), history_buffer.addresses.begin()+100000);
-
-  history_buffer.append(cur_addr);
 
   RF_DBG_MSG("0x" << setbase(16) << cur_addr << endl);
 
@@ -65,7 +65,7 @@ void LEI::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
     // Region exits
     profile_target_instr = true;
   }
-  else if ((edg == rain.nte_loop_edge) && (cur_addr <= last_addr)) {
+  if ((edg == rain.nte_loop_edge) && (cur_addr <= last_addr)) {
     // Profile NTE instructions that are target of backward jumps
     profile_target_instr = true;
   }
@@ -83,31 +83,27 @@ void LEI::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
   if (recording) {
     bool paused = false;
 
-    unsigned long long first_addr = -1;
+    // Transverse the history buffer until find the end of the loop 
+    // (first_addr == addr) and copy the instruction to recording_buffer
     auto rit = history_buffer.addresses.rbegin();
     for (; rit != history_buffer.addresses.rend(); ++rit) { 
       unsigned long long int addr = (*rit);
-      if (first_addr == -1) {
-        first_addr = addr;
-        continue;
-      }
 
-      if (hasRecorded(addr)) {
-        recording_buffer.reset();
+      if (recording_buffer.contains_address(addr)) 
         break;
-      }
 
-      if (recording_buffer.addresses.size() > 1) {
-        if (switched_mode(recording_buffer.addresses.back(), addr)) {
+      if (hasRecorded(addr))
+        break;
+
+      if (recording_buffer.addresses.size() > 1)
+        if (switched_mode(recording_buffer.addresses.back(), addr))
+          if (!mix_usr_sys)
             paused = !paused;
-        }
-      }
 
-      //if (!paused) 
+      if (!paused) {
+        recorded[addr] = true;
         recording_buffer.append(addr);
-
-      if (addr == first_addr)
-        break;
+      }
     }
 
     if (recording_buffer.addresses.size() != 0) {
@@ -115,8 +111,12 @@ void LEI::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
 
       RF_DBG_MSG("Stop buffering and build new LEI region." << endl);
 
+      // Remove the instructions selected to build the region from the
+      // history buffer
       if (recording_buffer.addresses.size() > 0) {
-        recorded[recording_buffer.addresses[0]] = true;
+        recorded[recording_buffer.addresses.front()] = true;
+        recorded[recording_buffer.addresses.back()] = true;
+
         history_buffer.addresses.erase(
             history_buffer.addresses.end()-recording_buffer.addresses.size(),
             history_buffer.addresses.end());
@@ -125,6 +125,8 @@ void LEI::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
       buildRegion();
     }
     recording = false;
+  } else {
+      history_buffer.append(cur_addr);
   }
 
   last_addr = cur_addr;

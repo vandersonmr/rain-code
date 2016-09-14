@@ -22,8 +22,9 @@
 #define RF_TECHNIQUES_H
 
 #include "rain.h"
-#include <unordered_map>
+#include "arglib.h"
 
+#include <unordered_map>
 #include <vector>
 #include <deque>
 
@@ -42,14 +43,15 @@ namespace rf_technique {
 
   #define HOT_THRESHOLD 50
   static unsigned long long system_threshold;
+  static bool mix_usr_sys;
 
   /** Instruction hotness profiler. */
   struct profiler_t {
-    map<unsigned long long, unsigned long long> instr_freq_counter;
+    unordered_map<unsigned long long, unsigned long long> instr_freq_counter;
 
     /** Update profile information. */
     void update(unsigned long long addr) {
-      map<unsigned long long, unsigned long long>::iterator it = 
+      unordered_map<unsigned long long, unsigned long long>::iterator it = 
         instr_freq_counter.find(addr);
       if (it == instr_freq_counter.end()) {
         RF_DBG_MSG("profiling: freq[" << "0x" << std::setbase(16) << addr << "] = 1" << endl);
@@ -62,7 +64,7 @@ namespace rf_technique {
     }
 
     void reset(unsigned long long addr) {
-      map<unsigned long long, unsigned long long>::iterator it = 
+      unordered_map<unsigned long long, unsigned long long>::iterator it = 
         instr_freq_counter.find(addr);
       assert(it != instr_freq_counter.end() && "Trying to reset a header (addr) that doesn't exist!");
       it->second = 3;
@@ -70,7 +72,7 @@ namespace rf_technique {
 
     /** Check whether instruction is already hot. */
     bool is_hot(unsigned long long addr) {
-      map<unsigned long long, unsigned long long>::iterator it = 
+      unordered_map<unsigned long long, unsigned long long>::iterator it = 
         instr_freq_counter.find(addr);
       if (it != instr_freq_counter.end())
         return (it->second >= HOT_THRESHOLD);
@@ -91,9 +93,8 @@ namespace rf_technique {
 
     bool contains_address(unsigned long long addr)
     {
-      vector<unsigned long long>::iterator it;
-      for (it = addresses.begin(); it != addresses.end(); it++) {
-        if ( (*it) == addr) 
+      for (auto I : addresses) {
+        if (I == addr) 
           return true;
       }
       return false;
@@ -117,8 +118,11 @@ namespace rf_technique {
       system_threshold = addr;
     }
 
-  protected:
+    static void is_mix_usr_sys(bool mix) {
+      mix_usr_sys = mix;
+    }
 
+  protected:
     bool is_system_instr(unsigned long long addr)
     {
       return (addr >= system_threshold);
@@ -147,21 +151,18 @@ namespace rf_technique {
       rain::Region* r = rain.createRegion();
       rain::Region::Node* last_node = NULL;
 
-      vector<unsigned long long>::iterator it;
-      for (it = recording_buffer.addresses.begin();
-           it != recording_buffer.addresses.end(); it++) {
-        unsigned long long addr = (*it);
+      for (auto addr : recording_buffer.addresses) {
 
         rain::Region::Node* node = new rain::Region::Node(addr);
         r->insertNode(node);
 
         if (!last_node) {
           // First node
-#ifdef DEBUG
+        #ifdef DEBUG
           // Make sure there were no region associated with the entry address.
           assert(rain.region_entry_nodes.find(node->getAddress()) == 
               rain.region_entry_nodes.end());
-#endif
+        #endif
           rain.setEntry(node);
         }
         else {
@@ -206,7 +207,7 @@ namespace rf_technique {
     using RF_Technique::buildRegion;
   };
 
-  /** 
+  /**
    * Class to evaluate the Last Executing Function (LEF) region formation
    * technique.
    */
@@ -214,7 +215,7 @@ namespace rf_technique {
   {
   public:
 
-    LEF() : recording(false), merging(false), last_addr (0)
+    LEF() : recording(false), last_addr (0)
     { std::cout << "Initing LEF\n" << std::endl; }
 
     void process(unsigned long long cur_addr, char cur_opcode[16], char unsigned cur_length, 
@@ -223,13 +224,12 @@ namespace rf_technique {
     void finish();
 
   private:
+    bool isRetInst(char[16]);
+    bool isCallInst(char[16]);
 
-    bool merging;
     bool recording;
     unsigned long long last_addr;
     
-    map<unsigned long long, bool> region_with_ret;
-
     using RF_Technique::buildRegion;
   };
 

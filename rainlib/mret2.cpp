@@ -90,9 +90,6 @@ bool MRET2::hasRecorded(unsigned long long addr) {
   return recorded[addr];
 }
 
-int c1 = 0;
-int c2 = 0;
-int from = 0;
 void MRET2::process(unsigned long long cur_addr, char cur_opcode[16], char unsigned cur_length,
     unsigned long long nxt_addr, char nxt_opcode[16], char unsigned nxt_length)
 {
@@ -111,12 +108,10 @@ void MRET2::process(unsigned long long cur_addr, char cur_opcode[16], char unsig
     // Profile NTE instructions that are target of regions instructions
     // Region exits
     profile_target_instr = true;
-    from = 0;
   }
   else if ((edg == rain.nte_loop_edge) && (cur_addr <= last_addr)) {
     // Profile NTE instructions that are target of backward jumps
     profile_target_instr = true;
-    from = 1;
   }
 
   if (profile_target_instr) {
@@ -129,8 +124,6 @@ void MRET2::process(unsigned long long cur_addr, char cur_opcode[16], char unsig
       }
       header = cur_addr;
       recording = true;
-      if (from == 0) c1++;
-      else c2++;
     }
   }
 
@@ -158,12 +151,12 @@ void MRET2::process(unsigned long long cur_addr, char cur_opcode[16], char unsig
     else if (recording_buffer.addresses.size() > 1) {
       // Only check if buffer alreay has more than one instruction recorded.
       if (switched_mode(recording_buffer.addresses.back(), cur_addr)) {
-        //if (!mix_usr_sys.was_set()) {
+        if (!mix_usr_sys) {
           // switched between user and system mode
           RF_DBG_MSG("Stopped recording because processor switched mode: 0x" << setbase(16) << 
               last_addr << " -> 0x" << cur_addr << endl);
           stopRecording = true;
-        //}
+        }
       }
     }
 
