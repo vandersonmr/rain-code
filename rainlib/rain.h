@@ -24,6 +24,7 @@
 #include <map>
 #include <list>
 #include <set>
+#include <unordered_map>
 
 using namespace std;
 
@@ -124,20 +125,22 @@ namespace rain {
     void insertNode(Node * node)
     {
       node->region = this;
-      nodes.push_back(node);
+      nodes.insert(node);
     }
     void setEntryNode(Node* node)
-    {entry_nodes.push_back(node);}
+    {entry_nodes.insert(node);}
     void setExitNode(Node* node)
-    {exit_nodes.push_back(node);}
+    {exit_nodes.insert(node);}
     Edge* createInnerRegionEdge(Node* src, Node* tgt);
 
     /** A região é composta por nós ligados por arestas, semelhante a um CFG. */
-    list<Node* > nodes;
+    set<Node* > nodes;
     /** List of pointer to entry nodes. */
-    list<Node* > entry_nodes;
+    set<Node* > entry_nodes;
     /** List of pointer to exit nodes. */
-    list<Node* > exit_nodes;
+    set<Node* > exit_nodes;
+
+    Node* getNode(unsigned long long);
 
     /** Region identifier -- debug purposes. */
     unsigned id;
@@ -149,8 +152,6 @@ namespace rain {
     EdgeListItem* reg_out_edges;
     /** List of pointers to region in edges. */
     EdgeListItem* reg_in_edges;
-
-  private:
 
     bool isInnerEdge(Edge* e) const;
 
@@ -200,7 +201,7 @@ namespace rain {
     Region::Node* cur_node;
 
     /** Hash table for entry nodes. */
-    map<unsigned long long, Region::Node*> region_entry_nodes;
+    unordered_map<unsigned long long, Region::Node*> region_entry_nodes;
 
     RAIn() : region_id_generator(1) // id 0 is reserved for NTE
     {

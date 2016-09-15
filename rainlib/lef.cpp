@@ -19,8 +19,10 @@
  *   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             *
  ***************************************************************************/
 #include "rf_techniques.h"
-#include <iostream>
 #include "arglib.h"
+
+#include <iostream>
+#include <algorithm>
 
 using namespace rf_technique;
 using namespace rain;
@@ -42,14 +44,75 @@ bool LEF::isCallInst(char cur_opcode[16]) {
   return (opcode == 232 || opcode == 154);
 }
 
+
+void LEF::updateOutAddrs(rain::Region* reg, pair_addr e) { // edge == pair<ull, ull>
+  if (reg_out_addrs.count(reg) == 0) {
+    shared_ptr<set<pair_addr>> tgt_addrs(new set<pair_addr>);
+    tgt_addrs->insert(e);
+    reg_out_addrs.insert(make_pair(reg, tgt_addrs));
+  } else {
+    reg_out_addrs[reg]->insert(e);
+  }
+}
+
+void LEF::mergeRegions(rain::Region* reg) {
+  vector<unsigned long long> entry_addrs;
+  for (auto node : reg->entry_nodes) 
+    entry_addrs.push_back(node->getAddress());
+
+  bool newNeighbors = true;
+  while (newNeighbors) {
+    newNeighbors = false;
+    vector<unsigned long long> entry_addrs_aux;
+    for (auto pair : reg_out_addrs) {
+      for (auto edge : *pair.second) {
+        auto it = find(entry_addrs.begin(), entry_addrs.end(), edge.second);
+
+        if (it != entry_addrs.end()) {
+
+          for (auto node : pair.first->entry_nodes)
+            entry_addrs_aux.push_back(node->getAddress());
+
+          unsigned long long src_addr = edge.first;
+          unsigned long long tgt_addr = edge.second;
+          rain::Region* src_reg = pair.first;
+          rain::Region* tgt_reg = nullptr;
+
+          if (rain.region_entry_nodes.count(tgt_addr) != 0)
+            tgt_reg = rain.region_entry_nodes[tgt_addr]->region;
+
+          if (tgt_reg != nullptr) {
+            tgt_reg->createInnerRegionEdge(src_reg->getNode(src_addr),
+                                           tgt_reg->getNode(tgt_addr));
+
+            for (auto node : src_reg->nodes)
+              node->region = tgt_reg;
+
+            tgt_reg->nodes.insert(src_reg->nodes.begin(), src_reg->nodes.end());
+            tgt_reg->entry_nodes.insert(src_reg->entry_nodes.begin(), src_reg->entry_nodes.end());
+            //tgt_reg->exit_nodes.insert(tgt_reg->exit_nodes.end(), tgt_reg->exit_nodes.begin(), tgt_reg->exit_nodes.end());
+
+            rain.regions.erase(src_reg->id);
+          }
+
+          newNeighbors = true;
+        }
+      }
+    }
+    entry_addrs.clear();
+    entry_addrs = entry_addrs_aux;
+  }
+}
+
 void LEF::process(unsigned long long cur_addr, char cur_opcode[16], char unsigned cur_length, 
     unsigned long long nxt_addr, char nxt_opcode[16], char unsigned nxt_length)
 {
   // Execute TEA transition.
   Region::Edge* edg = rain.queryNext(cur_addr);
-  if (!edg) {
+
+  if (!edg) 
     edg = rain.addNext(cur_addr);
-  }
+
   rain.executeEdge(edg);
 
   RF_DBG_MSG("0x" << setbase(16) << cur_addr << endl);
@@ -60,6 +123,8 @@ void LEF::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
     // Profile NTE instructions that are target of regions instructions
     // Region exits
     profile_target_instr = true;
+
+    updateOutAddrs(edg->src->region, make_pair(edg->src->getAddress(), cur_addr));
   }
   else if ((edg == rain.nte_loop_edge) && (cur_addr <= last_addr)) {
     // Profile NTE instructions that are target of backward jumps
@@ -73,6 +138,7 @@ void LEF::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
         RF_DBG_MSG("0x" << setbase(16) << cur_addr << " is hot. Start Region formation." << endl);
         recording_buffer.reset();
         recording = true;
+        retRegion = false;
     }
   }
 
@@ -109,12 +175,17 @@ void LEF::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
       }
     }
 
+    if (isRetInst(cur_opcode)) 
+      retRegion = true;
+
     if (stopRecording) {
         // Create region and add to RAIn TEA
         // merge both -> save to recording
         RF_DBG_MSG("Stop buffering and build new LEF region." << endl);
         recording = false;
         rain::Region* r = buildRegion();
+        if (retRegion && r != NULL) 
+          mergeRegions(r);
     }
     else {
       // Record target instruction on region formation buffer

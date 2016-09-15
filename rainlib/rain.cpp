@@ -146,15 +146,20 @@ Region::~Region()
   region_inner_edges.clear();
 
   // Remove all nodes.
-  for(list<Node*>::iterator nit = nodes.begin(); nit != nodes.end(); nit++) {
-    Region::Node* node = (*nit);
+  for(auto node : nodes) 
     delete node;
-  }
+
   nodes.clear();
 
   // Remove pointer to entry and exit nodes
   entry_nodes.clear();
   exit_nodes.clear();
+}
+
+Region::Node* Region::getNode(unsigned long long addr) {
+  for (auto n : nodes)
+    if (n->getAddress() == addr) return n;
+  return nullptr;
 }
 
 void Region::insertRegOutEdge(Edge* ed)
@@ -230,7 +235,7 @@ Region::Edge* RAIn::addNext(unsigned long long next_ip)
   Region::Node* next_node = NULL;
 
   // Search for region entries.
-  map<unsigned long long, Region::Node*>::iterator it = 
+  unordered_map<unsigned long long, Region::Node*>::iterator it = 
     region_entry_nodes.find(next_ip);
   if(it != region_entry_nodes.end())
     next_node = it->second;
@@ -321,27 +326,25 @@ void RAIn::printRAInStats(ostream& stats_f)
 unsigned long long Region::allNodesFreq() const
 {
   unsigned long long c = 0;
-  for (list<Node*>::const_iterator it = nodes.begin(); it!=nodes.end(); it++) {
-    c += (*it)->freq_counter;
-  }
+  for (Region::Node* node : nodes) 
+    c += node->freq_counter;
+
   return c;
 }
 
 unsigned long long Region::entryNodesFreq() const
 {
   unsigned long long c = 0;
-  for (list<Node*>::const_iterator it = entry_nodes.begin(); it!=entry_nodes.end(); it++) {
-    c += (*it)->freq_counter;
-  }
+  for (auto entry_node : entry_nodes) 
+    c += entry_node->freq_counter;
   return c;
 }
 
 unsigned long long Region::exitNodesFreq() const
 {
   unsigned long long c = 0;
-  for (list<Node*>::const_iterator it = exit_nodes.begin(); it!=exit_nodes.end(); it++) {
-    c += (*it)->freq_counter;
-  }
+  for (auto exit_node : exit_nodes)
+    c += exit_node->freq_counter;
   return c;
 }
 
@@ -358,11 +361,10 @@ bool Region::isInnerEdge(Region::Edge* e) const
 unsigned long long Region::mainExitsFreq() const
 {
   unsigned long long c = 0;
-  list<Node*>::const_iterator it;
 
-  for (it=exit_nodes.begin(); it != exit_nodes.end(); it++) {
+  for (auto exit_node : exit_nodes) {
 
-    for (EdgeListItem* eit = (*it)->out_edges; eit; eit=eit->next) {
+    for (EdgeListItem* eit = exit_node->out_edges; eit; eit=eit->next) {
       Edge* e = eit->edge;
       // Is it an exit edge? 
       if (!isInnerEdge(e)) {
@@ -448,10 +450,9 @@ void RAIn::printOverallStats(ostream& stats_f)
     if (allNodesFreq > 0)
       region_cov.push_back(pair<Region*, unsigned long long>(r, allNodesFreq));
 
-    list<Region::Node*>::const_iterator it;
-    for (it=r->nodes.begin(); it!=r->nodes.end(); it++) {
-      unique_instrs[(*it)->getAddress()] = 1;
-    }
+    for (Region::Node* node : r->nodes) 
+      unique_instrs[node->getAddress()] = 1;
+
   }
   unsigned long long total_unique_instrs = unique_instrs.size();
 
@@ -539,17 +540,13 @@ void RAIn::printRegionDOT(Region* region, ostream& reg)
   unsigned id_gen = 1;
   // For each node.
   reg << "/* nodes */" << endl;
-  for (list<Region::Node*>::const_iterator nit = region->nodes.begin(); 
-      nit != region->nodes.end(); nit++) {
-    Region::Node* n = *nit;
+  for (Region::Node* n : region->nodes) {
     node_id[n] = id_gen++;
     reg << "  n" << node_id[n] << " [label=\"0x" << n->getAddress() << "\"]" << endl;
   }
 
   reg << "/* edges */" << endl;
-  for (list<Region::Node*>::const_iterator nit = region->nodes.begin(); 
-      nit != region->nodes.end(); nit++) {
-    Region::Node* n = *nit;
+  for (Region::Node* n : region->nodes) {
     // For each out edge.
     for (Region::EdgeListItem* i = n->out_edges; i; i=i->next) {
       Region::Edge* edg = i->edge;

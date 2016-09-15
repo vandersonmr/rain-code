@@ -27,6 +27,7 @@
 #include <unordered_map>
 #include <vector>
 #include <deque>
+#include <memory>
 
 #include <cassert>
 #include <iostream> // cerr
@@ -94,7 +95,7 @@ namespace rf_technique {
     bool contains_address(unsigned long long addr)
     {
       for (auto I : addresses) {
-        if (I == addr) 
+        if (I == addr)
           return true;
       }
       return false;
@@ -209,13 +210,13 @@ namespace rf_technique {
 
   /**
    * Class to evaluate the Last Executing Function (LEF) region formation
-   * technique.
+   * technique
    */
   class LEF : public RF_Technique
   {
   public:
 
-    LEF() : recording(false), last_addr (0)
+    LEF() : recording(false), retRegion(true), last_addr (0)
     { std::cout << "Initing LEF\n" << std::endl; }
 
     void process(unsigned long long cur_addr, char cur_opcode[16], char unsigned cur_length, 
@@ -224,12 +225,20 @@ namespace rf_technique {
     void finish();
 
   private:
+    typedef pair<unsigned long long, unsigned long long> pair_addr;
+    typedef shared_ptr<set<pair_addr>> set_addr_uptr;
+
     bool isRetInst(char[16]);
     bool isCallInst(char[16]);
+    void updateOutAddrs(rain::Region*, pair_addr);
 
-    bool recording;
+    void mergeRegions(rain::Region*);
+
+    bool recording, retRegion;
     unsigned long long last_addr;
-    
+
+    unordered_map<rain::Region*, set_addr_uptr> reg_out_addrs;
+
     using RF_Technique::buildRegion;
   };
 
