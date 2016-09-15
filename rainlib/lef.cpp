@@ -23,6 +23,7 @@
 
 #include <iostream>
 #include <algorithm>
+#include <cstring>
 
 using namespace rf_technique;
 using namespace rain;
@@ -44,7 +45,6 @@ bool LEF::isCallInst(char cur_opcode[16]) {
   return (opcode == 232 || opcode == 154);
 }
 
-
 void LEF::updateOutAddrs(rain::Region* reg, pair_addr e) { // edge == pair<ull, ull>
   if (reg_out_addrs.count(reg) == 0) {
     shared_ptr<set<pair_addr>> tgt_addrs(new set<pair_addr>);
@@ -55,10 +55,41 @@ void LEF::updateOutAddrs(rain::Region* reg, pair_addr e) { // edge == pair<ull, 
   }
 }
 
-void LEF::mergeRegions(rain::Region* reg) {
-  vector<unsigned long long> entry_addrs;
+void LEF::mergeRegions(rain::Region* src_reg, unsigned long long src_addr,
+    rain::Region* tgt_reg, unsigned long long tgt_addr) {
+
+  if (rain.region_entry_nodes.count(tgt_addr) != 0)
+    tgt_reg = rain.region_entry_nodes[tgt_addr]->region;
+
+  if (tgt_reg != nullptr) {
+    tgt_reg->createInnerRegionEdge(src_reg->getNode(src_addr),
+        tgt_reg->getNode(tgt_addr));
+
+    for (auto node : src_reg->nodes)
+      node->region = tgt_reg;
+
+    tgt_reg->nodes.insert(src_reg->nodes.begin(), src_reg->nodes.end());
+    tgt_reg->entry_nodes.insert(src_reg->entry_nodes.begin(), src_reg->entry_nodes.end());
+
+    rain.regions.erase(src_reg->id);
+  }
+}
+
+bool LEF::hasComeFromCall(rain::Region* reg) {
+  return came_from_call.count(reg) != 0;
+}
+
+void LEF::insertEntryAddrs(rain::Region* reg, vector<unsigned long long>& entry_addrs) {
   for (auto node : reg->entry_nodes) 
     entry_addrs.push_back(node->getAddress());
+}
+
+void LEF::expandRegion(rain::Region* reg) {
+  if (hasComeFromCall(reg))
+    return;
+
+  vector<unsigned long long> entry_addrs;
+  insertEntryAddrs(reg, entry_addrs);
 
   bool newNeighbors = true;
   while (newNeighbors) {
@@ -69,36 +100,23 @@ void LEF::mergeRegions(rain::Region* reg) {
         auto it = find(entry_addrs.begin(), entry_addrs.end(), edge.second);
 
         if (it != entry_addrs.end()) {
-
-          for (auto node : pair.first->entry_nodes)
-            entry_addrs_aux.push_back(node->getAddress());
-
           unsigned long long src_addr = edge.first;
           unsigned long long tgt_addr = edge.second;
           rain::Region* src_reg = pair.first;
           rain::Region* tgt_reg = nullptr;
 
-          if (rain.region_entry_nodes.count(tgt_addr) != 0)
-            tgt_reg = rain.region_entry_nodes[tgt_addr]->region;
+          if (hasComeFromCall(src_reg))
+            return;
 
-          if (tgt_reg != nullptr) {
-            tgt_reg->createInnerRegionEdge(src_reg->getNode(src_addr),
-                                           tgt_reg->getNode(tgt_addr));
+          insertEntryAddrs(src_reg, entry_addrs_aux);
 
-            for (auto node : src_reg->nodes)
-              node->region = tgt_reg;
-
-            tgt_reg->nodes.insert(src_reg->nodes.begin(), src_reg->nodes.end());
-            tgt_reg->entry_nodes.insert(src_reg->entry_nodes.begin(), src_reg->entry_nodes.end());
-            //tgt_reg->exit_nodes.insert(tgt_reg->exit_nodes.end(), tgt_reg->exit_nodes.begin(), tgt_reg->exit_nodes.end());
-
-            rain.regions.erase(src_reg->id);
-          }
+          mergeRegions(src_reg, src_addr, tgt_reg, tgt_addr);
 
           newNeighbors = true;
         }
       }
     }
+
     entry_addrs.clear();
     entry_addrs = entry_addrs_aux;
   }
@@ -110,7 +128,7 @@ void LEF::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
   // Execute TEA transition.
   Region::Edge* edg = rain.queryNext(cur_addr);
 
-  if (!edg) 
+  if (!edg)
     edg = rain.addNext(cur_addr);
 
   rain.executeEdge(edg);
@@ -134,11 +152,15 @@ void LEF::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
   if (profile_target_instr) {
     profiler.update(cur_addr);
     if (profiler.is_hot(cur_addr) && !recording) {
-        // Start region formation....
-        RF_DBG_MSG("0x" << setbase(16) << cur_addr << " is hot. Start Region formation." << endl);
-        recording_buffer.reset();
-        recording = true;
-        retRegion = false;
+      // Start region formation....
+      RF_DBG_MSG("0x" << setbase(16) << cur_addr << " is hot. Start Region formation." << endl);
+      recording_buffer.reset();
+      recording = true;
+      retRegion = false;
+      callRegion = false;
+
+      if (isCallInst(last_opcode)) 
+        callRegion = true;
     }
   }
 
@@ -179,13 +201,17 @@ void LEF::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
       retRegion = true;
 
     if (stopRecording) {
-        // Create region and add to RAIn TEA
-        // merge both -> save to recording
-        RF_DBG_MSG("Stop buffering and build new LEF region." << endl);
-        recording = false;
-        rain::Region* r = buildRegion();
-        if (retRegion && r != NULL) 
-          mergeRegions(r);
+      // Create region and add to RAIn TEA
+      // merge both -> save to recording
+      RF_DBG_MSG("Stop buffering and build new LEF region." << endl);
+      recording = false;
+      rain::Region* r = buildRegion();
+      if (r != nullptr) {
+        if (callRegion)
+          came_from_call[r] = true;
+        if (retRegion)
+          expandRegion(r);
+      }
     }
     else {
       // Record target instruction on region formation buffer
@@ -195,6 +221,7 @@ void LEF::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
     }
   }
 
+  strncpy(last_opcode, cur_opcode, 16);
   last_addr = cur_addr;
 }
 
