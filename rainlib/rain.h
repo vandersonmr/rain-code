@@ -112,7 +112,8 @@ namespace rain {
 
   public:
 
-    Region() : reg_out_edges(NULL), reg_in_edges(NULL) 
+    bool alive; // if false, the region has been deleted
+    Region() : reg_out_edges(NULL), reg_in_edges(NULL), alive(true) 
     {}
     ~Region();
 

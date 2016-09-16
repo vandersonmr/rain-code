@@ -326,7 +326,7 @@ void RAIn::printRAInStats(ostream& stats_f)
 unsigned long long Region::allNodesFreq() const
 {
   unsigned long long c = 0;
-  for (Region::Node* node : nodes) 
+  for (Region::Node* node : nodes)
     c += node->freq_counter;
 
   return c;
@@ -437,10 +437,9 @@ void RAIn::printOverallStats(ostream& stats_f)
   unsigned long long _90_cover_set_instrs = 0;
 
   vector< pair<Region*,unsigned long long> > region_cov;
-  map<unsigned, Region*>::iterator rit;
-  for (rit = regions.begin(); rit != regions.end(); rit++)
+  for (auto rit : regions)
   {
-    Region* r = rit->second;
+    Region* r = rit.second;
     total_stat_reg_size += r->nodes.size();
     total_reg_entries += r->externalEntriesFreq();
     total_reg_main_exits += r->mainExitsFreq();

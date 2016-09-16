@@ -58,21 +58,18 @@ void LEF::updateOutAddrs(rain::Region* reg, pair_addr e) { // edge == pair<ull, 
 void LEF::mergeRegions(rain::Region* src_reg, unsigned long long src_addr,
     rain::Region* tgt_reg, unsigned long long tgt_addr) {
 
-  if (rain.region_entry_nodes.count(tgt_addr) != 0)
-    tgt_reg = rain.region_entry_nodes[tgt_addr]->region;
-
-  if (tgt_reg != nullptr) {
     tgt_reg->createInnerRegionEdge(src_reg->getNode(src_addr),
-        tgt_reg->getNode(tgt_addr));
+                                   tgt_reg->getNode(tgt_addr));
 
     for (auto node : src_reg->nodes)
       node->region = tgt_reg;
 
     tgt_reg->nodes.insert(src_reg->nodes.begin(), src_reg->nodes.end());
     tgt_reg->entry_nodes.insert(src_reg->entry_nodes.begin(), src_reg->entry_nodes.end());
+    tgt_reg->exit_nodes.insert(src_reg->exit_nodes.begin(), src_reg->exit_nodes.end());
 
+    src_reg->alive = false;
     rain.regions.erase(src_reg->id);
-  }
 }
 
 bool LEF::hasComeFromCall(rain::Region* reg) {
@@ -80,7 +77,7 @@ bool LEF::hasComeFromCall(rain::Region* reg) {
 }
 
 void LEF::insertEntryAddrs(rain::Region* reg, vector<unsigned long long>& entry_addrs) {
-  for (auto node : reg->entry_nodes) 
+  for (auto node : reg->entry_nodes)
     entry_addrs.push_back(node->getAddress());
 }
 
@@ -96,6 +93,9 @@ void LEF::expandRegion(rain::Region* reg) {
     newNeighbors = false;
     vector<unsigned long long> entry_addrs_aux;
     for (auto pair : reg_out_addrs) {
+
+      if (!pair.first->alive) continue;
+
       for (auto edge : *pair.second) {
         auto it = find(entry_addrs.begin(), entry_addrs.end(), edge.second);
 
@@ -105,10 +105,16 @@ void LEF::expandRegion(rain::Region* reg) {
           rain::Region* src_reg = pair.first;
           rain::Region* tgt_reg = nullptr;
 
-          if (!hasComeFromCall(src_reg)) 
-            insertEntryAddrs(src_reg, entry_addrs_aux);
+          if (rain.region_entry_nodes.count(tgt_addr) != 0)
+            tgt_reg = rain.region_entry_nodes[tgt_addr]->region;
 
-          mergeRegions(src_reg, src_addr, tgt_reg, tgt_addr);
+          if (hasComeFromCall(src_reg))
+            return;
+
+          if (tgt_reg != nullptr) {
+            insertEntryAddrs(src_reg, entry_addrs_aux);
+            mergeRegions(src_reg, src_addr, tgt_reg, tgt_addr);
+          }
 
           newNeighbors = true;
         }
