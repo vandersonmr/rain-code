@@ -105,10 +105,8 @@ void LEF::expandRegion(rain::Region* reg) {
           rain::Region* src_reg = pair.first;
           rain::Region* tgt_reg = nullptr;
 
-          if (hasComeFromCall(src_reg))
-            return;
-
-          insertEntryAddrs(src_reg, entry_addrs_aux);
+          if (!hasComeFromCall(src_reg)) 
+            insertEntryAddrs(src_reg, entry_addrs_aux);
 
           mergeRegions(src_reg, src_addr, tgt_reg, tgt_addr);
 

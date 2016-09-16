@@ -487,6 +487,8 @@ void RAIn::printOverallStats(ostream& stats_f)
     }
   }
 
+  cout << total_reg_freq + nte_freq << endl;
+
   stats_f << "reg_dyn_inst_count" << "," << total_reg_freq << ",Freq. of instructions emulated by regions" << endl;
   stats_f << "reg_stat_instr_count" << "," << total_stat_reg_size  << ",Static # of instructions translated into regions" << endl;
   stats_f << "reg_uniq_instr_count" << "," << total_unique_instrs << ",# of unique instructions included on regions" << endl;
