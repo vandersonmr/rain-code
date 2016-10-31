@@ -1,6 +1,7 @@
 #include <unistd.h>
 #include <inttypes.h>
 #include <unicorn/unicorn.h>
+#include <elfio/elfio.hpp>
 
 #include <trace_io.h>
 #include <fstream>
@@ -9,12 +10,7 @@
 #include <stdio.h>
 
 using namespace std;
-
-// memory address where emulation starts
-#define ADDRESS 0x1000
-
-#define LINUX_SYS_THRESHOLD   0xB2D05E00         // 3000000000
-#define WINDOWS_SYS_THRESHOLD 0xF9CCD8A1C5080000 // 18000000000000000000 
+using namespace ELFIO;
 
 trace_io::raw_output_pipe_t *out;
 
@@ -33,42 +29,35 @@ static void hook_code64(uc_engine *uc, uint64_t address, uint32_t size, void *us
     out->write_trace_item(t1);
 }
 
-long read_binary(char *filename, char **buffer) {
-    long length;
-    FILE * f = fopen (filename, "rb");
-
-    if (f) {
-      fseek (f, 0, SEEK_END);
-      length = ftell (f);
-      fseek (f, 0, SEEK_SET);
-      *buffer = (char*) malloc (length);
-      if (*buffer)
-      {
-          fread (*buffer, 1, length, f);
-      }
-      fclose (f);
-    }
-    return length;
-}
-
-static void test_x86_64(char *filename_code, char *filename_data)
+static void test_x86_64(char *filename)
 {
+    elfio reader;
+
     uc_engine *uc;
     uc_err err;
     uc_hook trace1, trace2, trace3, trace4;
 
-    int64_t rsp = ADDRESS + 1024;
-
-    printf("Emulate x86_64 code\n");
+    printf("Emulating x86_64 code\n");
 
     // Read the binary from a file
-    char * buffer_code = 0;
-    char * buffer_data = 0;
-    long len_code = 0;
-    long len_data = 0;
+    char *buffer_code;
+    long len_code;
+    int64_t base_address;
 
-    len_code = read_binary(filename_code, &buffer_code);
-    len_data = read_binary(filename_data, &buffer_data);
+    reader.load(filename);
+
+    // Iterate over all elf sections
+    Elf_Half sec_num = reader.sections.size();
+    for (int i = 0; i < sec_num; i++) {
+      section* psec = reader.sections[i];
+      if (psec->get_name() == ".text") {
+        buffer_code = (char*) psec->get_data();
+        len_code = psec->get_size();
+        base_address = psec->get_address();
+      }
+    }
+
+    int64_t rsp = base_address + 1024;
 
     // Initialize emulator in X86-64bit mode
     err = uc_open(UC_ARCH_X86, UC_MODE_64, &uc);
@@ -78,11 +67,10 @@ static void test_x86_64(char *filename_code, char *filename_data)
     }
 
     // map 10MB memory for this emulation
-    uc_mem_map(uc, ADDRESS, 1024 * 1024 * 1024, UC_PROT_ALL);
+    uc_mem_map(uc, base_address, 1024 * 1024 * 2, UC_PROT_ALL);
 
     // write machine code to be emulated to memory
-    if (uc_mem_write(uc, ADDRESS, buffer_code, len_code-1) | 
-        uc_mem_write(uc, ADDRESS+0x1000, buffer_data, len_data)) {
+    if (uc_mem_write(uc, base_address, buffer_code, len_code-1)) {
         printf("Failed to write emulation code to memory, quit!\n");
         return;
     }
@@ -91,18 +79,19 @@ static void test_x86_64(char *filename_code, char *filename_data)
     uc_reg_write(uc, UC_X86_REG_RSP, &rsp);
 
     // tracing all instructions in the range [ADDRESS, ADDRESS+20]
-    uc_hook_add(uc, &trace2, UC_HOOK_CODE, (void*) hook_code64, NULL, ADDRESS, ADDRESS+1024);
+    uc_hook_add(uc, &trace2, UC_HOOK_CODE, (void*) hook_code64, NULL,
+                base_address, base_address+1024);
 
     // emulate machine code in infinite time (last param = 0), or when
     // finishing all the code.
-    err = uc_emu_start(uc, ADDRESS, ADDRESS + len_code-1, 0, 0);
+    err = uc_emu_start(uc, base_address, base_address + len_code-1, 0, 0);
     if (err) {
         printf("Failed on uc_emu_start() with error returned %u: %s\n",
                 err, uc_strerror(err));
     }
 
     // now print out some registers
-    printf(">>> Emulation done. Below is the CPU context\n");
+    printf(">>> Emulation done.\n");
 
     uc_close(uc);
 }
@@ -111,12 +100,12 @@ int main(int argc, char **argv, char **envp)
 {
   out = new trace_io::raw_output_pipe_t(string("test"));
 
-  if (argc < 3) {
-    printf("You should pass the data filepath and the text filepath as argument!\n");
+  if (argc < 2) {
+    printf("You must pass the binary filepath as argument!\n");
     return 1;
   }
 
-  test_x86_64(argv[1], argv[2]);
+  test_x86_64(argv[1]);
 
   delete out;
   return 0;

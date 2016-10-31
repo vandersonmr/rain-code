@@ -26,14 +26,18 @@
 #include "trace_io.h"
 #include "rain.h"
 #include "rf_techniques.h"
+#include <elfio/elfio.hpp>
 #include <fstream> // ofstream
+#include <udis86.h>
 
 using namespace std;
 using namespace rain;
+using namespace ELFIO;
 
 clarg::argInt    start_i("-s", "start: first file index ", 0);
 clarg::argInt    end_i("-e", "end: last file index", 0);
-clarg::argString basename("-b", "input file basename", "trace");
+clarg::argString trace_path("-b", "input file trace_path", "trace");
+clarg::argString bin_path("-bin", "input binary file path", "");
 clarg::argString technique("-t", "RF Technique", "net");
 clarg::argBool   help("-h",  "display the help message");
 clarg::argString reg_stats_fname("-reg_stats", 
@@ -52,10 +56,9 @@ clarg::argBool mix_usr_sys("-mix_NET",  "Allow user and system code in the same 
 clarg::argBool lt("-lt", "linux trace. System/user address threshold = 0xB2D05E00");
 clarg::argBool wt("-wt", "windows trace. System/user address threshold = 0xF9CCD8A1C5080000");
 
-
 void usage(char* prg_name) 
 {
-  cout << "Usage: " << prg_name << " -b basename -s index -e index [-h] [-o stats.csv] {-lt|-wt}" 
+  cout << "Usage: " << prg_name << " -b trace_path -s index -e index [-h] [-o stats.csv] {-lt|-wt}" 
     << endl << endl;
 
   cout << "DESCRIPTION:" << endl;
@@ -71,16 +74,16 @@ void usage(char* prg_name)
   cout << "techniques. " << endl;
   cout << "The input trace may be store in multiple files, each one" << endl;
   cout << "containing a sub-sequence of the trace. Each file is named" << endl;
-  cout << "BASENAME.INDEX.bin.gz, where basename is the basename of" << endl;
+  cout << "BASENAME.INDEX.bin.gz, where trace_path is the trace_path of" << endl;
   cout << "the trace and INDEX indicates the sequence of the trace." << endl;
-  cout << "The user must provide the basename (-b), the start index (-s) and the end " << endl;
+  cout << "The user must provide the trace_path (-b), the start index (-s) and the end " << endl;
   cout << "index (-e)." << endl << endl;
 
   cout << "ARGUMENTS:" << endl;
   clarg::arguments_descriptions(cout, "  ", "\n");
 }
 
-int validate_arguments() 
+int validate_arguments()
 {
   if (!start_i.was_set()) {
     cerr << "Error: you must provide the start file index."
@@ -94,8 +97,8 @@ int validate_arguments()
     return 1;
   }
 
-  if (!basename.was_set()) {
-    cerr << "Error: you must provide the basename."
+  if (!trace_path.was_set()) {
+    cerr << "Error: you must provide the trace_path."
       << "(use -h for help)" << endl;
     return 1;
   }
@@ -111,13 +114,13 @@ int validate_arguments()
       << "(use -h for help)" << endl;
     return 1;
   }
-  
+
   if (mix_usr_sys.was_set()) {
     rf_technique::RF_Technique::is_mix_usr_sys(true);
   } else {
     rf_technique::RF_Technique::is_mix_usr_sys(false);
   }
-  
+
 
   if (lt.was_set()) {
     if (wt.was_set()) {
@@ -141,6 +144,38 @@ int validate_arguments()
   return 0;
 }
 
+vector<unsigned long long>* load_binary(string binary_path) {
+  ud_t ud_obj;
+  ud_init(&ud_obj);
+
+  elfio reader;
+
+  reader.load(binary_path);
+
+  Elf_Half sec_num = reader.sections.size();
+
+  ud_set_mode(&ud_obj, 32);
+  ud_set_syntax(&ud_obj, UD_SYN_INTEL);
+
+  // Iterate over all sections until find the .text section
+  vector<unsigned long long>* instructions = new vector<unsigned long long>;
+  for (int i = 0; i < sec_num; ++i) {
+    section* psec = reader.sections[i];
+    if (psec->get_data() != NULL) {
+      std::cout << psec->get_name() << std::endl;
+      // Prepare the .text section to be disassembled
+      ud_set_input_buffer(&ud_obj, (unsigned char*) psec->get_data(), psec->get_size());
+      ud_set_pc(&ud_obj, psec->get_address());
+      while (ud_disassemble(&ud_obj)) 
+        instructions->push_back(ud_insn_off(&ud_obj));
+    }
+  }
+
+  std::sort(instructions->begin(), instructions->end());
+
+  return instructions;
+}
+
 int main(int argc,char** argv)
 {
   // Parse the arguments
@@ -154,11 +189,11 @@ int main(int argc,char** argv)
     return 1;
   }
 
-  if (validate_arguments()) 
+  if (validate_arguments())
     return 1;
 
   // Create the input pipe.
-  trace_io::raw_input_pipe_t in(basename.get_value(),
+  trace_io::raw_input_pipe_t in(trace_path.get_value(),
       start_i.get_value(),
       end_i.get_value());
 
@@ -172,19 +207,26 @@ int main(int argc,char** argv)
     return 1;
   }
 
-  rf_technique::RF_Technique* rf = NULL; 
-  std::string chosenTechnique = technique.get_value();
+  rf_technique::RF_Technique* rf = NULL;
+  std::string chosen_technique = technique.get_value();
 
-  if (chosenTechnique == "lei") 
-    rf = new rf_technique::LEI();
-  else if (chosenTechnique == "mret2") 
+  if (chosen_technique == "lei") {
+    if (!bin_path.was_set()) {
+      cerr << "You must provide the binary file path with -bin" << endl;
+      return 1;
+    }
+
+    vector<unsigned long long>* code_insts = load_binary(bin_path.get_value());
+    rf = new rf_technique::LEI(*code_insts);
+  } else if (chosen_technique == "mret2") {
     rf = new rf_technique::MRET2();
-  else if (chosenTechnique == "tt")
+  } else if (chosen_technique == "tt") {
     rf = new rf_technique::TraceTree();
-  else if (chosenTechnique == "lef")
+  } else if (chosen_technique == "lef") {
     rf = new rf_technique::LEF();
-  else 
+  } else {
     rf = new rf_technique::NET();
+  }
 
   // While there are instructions
   while (in.get_next_instruction(next)) {

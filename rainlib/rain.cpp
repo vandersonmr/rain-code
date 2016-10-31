@@ -1,6 +1,7 @@
 /***************************************************************************
  *   Copyright (C) 2013 by:                                                *
  *   Edson Borin (edson@ic.unicamp.br), and                                *
+ *   Vanderson Rosario (vandersonmr2@gmail.com)                            *
  *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
  *   it under the terms of the GNU General Public License as published by  *

@@ -1,0 +1,17 @@
+reg_dyn_inst_count,85256203,Freq. of instructions emulated by regions
+reg_stat_instr_count,18843,Static # of instructions translated into regions
+reg_uniq_instr_count,7569,# of unique instructions included on regions
+reg_dyn_entries,2015620,Regions entry frequency count
+number_of_regions,299,Total number of regions
+interp_dyn_inst_count,14743796,Freq. of instruction emulated by interpretation
+avg_dyn_reg_size,42.2978,Average dynamic region size.
+avg_stat_reg_size,63.0201,Average static region size.
+dyn_reg_coverage,0.852562,Dynamic region coverage.
+code_duplication,2.4895,Region code duplication
+completion_ratio,0.710755,Completion Ratio
+70_cover_set_regs,19,minumun number of regions to cover 70% of dynamic execution
+80_cover_set_regs,49,minumun number of regions to cover 80% of dynamic execution
+90_cover_set_regs,0,minumun number of regions to cover 90% of dynamic execution
+70_cover_set_instrs,8394,minumun number of static instructions on regions to cover 70% of dynamic execution
+80_cover_set_instrs,10809,minumun number of static instructions on regions to cover 80% of dynamic execution
+90_cover_set_instrs,0,minumun number of static instructions on regions to cover 90% of dynamic execution

@@ -2,6 +2,7 @@
  *   Copyright (C) 2013 by:                                                *
  *   - Edson Borin (edson@ic.unicamp.br), and                              *
  *   - Raphael Zinsly (raphael.zinsly@gmail.com)                           *
+ *   - Vanderson Rosario (vandersonmr2@gmail.com)                          *
  *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
  *   it under the terms of the GNU General Public License as published by  *
@@ -257,7 +258,8 @@ namespace rf_technique {
   {
   public:
 
-    LEI() : recording(false), last_addr(0)
+    LEI(vector<unsigned long long> &inst)
+      : recording(false), last_addr(0), instructions(inst)
     { std::cout << "Initing LEI\n" << std::endl; }
 
     void process(unsigned long long cur_addr, char cur_opcode[16], char unsigned cur_length, 
@@ -272,13 +274,15 @@ namespace rf_technique {
     recording_buffer_t history_buffer;
     unordered_map<unsigned long long, bool> recorded;
 
+    vector<unsigned long long> &instructions;
+
     bool hasRecorded(unsigned long long addr);
 
     using RF_Technique::buildRegion;
   };
 
   /** 
-   * Class to evaluate the Last-Executed Iteration (LEI) region formation
+   * Class to evaluate the Most Recent Executed Trace (MRET2) region formation
    * technique.
    */
   class MRET2 : public RF_Technique

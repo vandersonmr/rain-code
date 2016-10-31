@@ -1,0 +1,13 @@
+digraph G{
+/* nodes */
+  n1 [label="0x83"]
+  n2 [label="0x88"]
+  n3 [label="0x93"]
+/* edges */
+n1 -> n2;
+n0 -> n1;
+n2 -> n3;
+n1 -> n2;
+n3 -> n0;
+n2 -> n3;
+}

@@ -2,6 +2,7 @@
  *   Copyright (C) 2013 by:                                                *
  *   - Edson Borin (edson@ic.unicamp.br), and                              *
  *   - Raphael Zinsly (raphael.zinsly@gmail.com)                           *
+ *   - Vanderson Rosario (vandersonmr2@gmail.com)                          * 
  *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
  *   it under the terms of the GNU General Public License as published by  *
@@ -41,6 +42,7 @@ bool LEI::hasRecorded(unsigned long long addr) {
 
 #define MAX_SIZE_HIST_BUFFER 1000000
 
+long long int total = 0;
 void LEI::process(unsigned long long cur_addr, char cur_opcode[16], char unsigned cur_length, 
     unsigned long long nxt_addr, char nxt_opcode[16], char unsigned nxt_length)
 {
@@ -50,6 +52,16 @@ void LEI::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
     edg = rain.addNext(cur_addr);
   }
   rain.executeEdge(edg);
+
+  if (cur_addr < 0xB2D05E00) {
+    if (!binary_search(instructions.begin(), instructions.end(), cur_addr) 
+     && !binary_search(instructions.begin(), instructions.end(), cur_addr+1)) {
+        std::cout << cur_addr  << " " << total << std::endl;
+        total--;
+    } else {
+      total++;
+    }
+  }
 
   // Shrink history buffer so it doesn't exceed max size
   if (history_buffer.addresses.size() > MAX_SIZE_HIST_BUFFER)
@@ -97,7 +109,7 @@ void LEI::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
 
       if (recording_buffer.addresses.size() > 1)
         if (switched_mode(recording_buffer.addresses.back(), addr))
-          if (!mix_usr_sys)
+          //if (!mix_usr_sys) //FIXME! it is not possible to use kernel insts
             paused = !paused;
 
       if (!paused) {
