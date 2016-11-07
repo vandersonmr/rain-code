@@ -42,18 +42,17 @@
 #endif
 
 namespace rf_technique {
-
-  #define HOT_THRESHOLD 50
   static unsigned long long system_threshold;
   static bool mix_usr_sys;
 
   /** Instruction hotness profiler. */
   struct profiler_t {
+    profiler_t() : hot_threshold(50) {};
     unordered_map<unsigned long long, unsigned long long> instr_freq_counter;
 
     /** Update profile information. */
     void update(unsigned long long addr) {
-      unordered_map<unsigned long long, unsigned long long>::iterator it = 
+      unordered_map<unsigned long long, unsigned long long>::iterator it =
         instr_freq_counter.find(addr);
       if (it == instr_freq_counter.end()) {
         RF_DBG_MSG("profiling: freq[" << "0x" << std::setbase(16) << addr << "] = 1" << endl);
@@ -77,10 +76,17 @@ namespace rf_technique {
       unordered_map<unsigned long long, unsigned long long>::iterator it = 
         instr_freq_counter.find(addr);
       if (it != instr_freq_counter.end())
-        return (it->second >= HOT_THRESHOLD);
+        return (it->second >= hot_threshold);
       else
         return false;
     }
+
+    void set_hot_threshold(unsigned threshold) {
+      hot_threshold = threshold;
+    }
+
+  private:
+    unsigned hot_threshold;
   };
 
   /** Buffer to record new regions. */
@@ -260,7 +266,7 @@ namespace rf_technique {
 
     LEI(vector<unsigned long long> &inst)
       : recording(false), last_addr(0), instructions(inst)
-    { std::cout << "Initing LEI\n" << std::endl; }
+    { std::cout << "Initing LEI\n" << std::endl; profiler.set_hot_threshold(35); }
 
     void process(unsigned long long cur_addr, char cur_opcode[16], char unsigned cur_length, 
         unsigned long long nxt_addr, char nxt_opcode[16], char unsigned nxt_length);
@@ -271,12 +277,17 @@ namespace rf_technique {
 
     bool recording;
     unsigned long long last_addr;
-    recording_buffer_t history_buffer;
     unordered_map<unsigned long long, bool> recorded;
 
     vector<unsigned long long> &instructions;
 
-    bool hasRecorded(unsigned long long addr);
+    #define MAX_SIZE_BUFFER 500
+    int buf_top = 0;
+    unsigned long long buf[MAX_SIZE_BUFFER];
+    unordered_map<unsigned long long, int> buf_hash;
+    unordered_map<unsigned long long, bool> code_cache;
+    void circularBufferInsert(unsigned long long, unsigned long long);
+    void formTrace(unsigned long long, int);
 
     using RF_Technique::buildRegion;
   };
