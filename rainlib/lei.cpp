@@ -40,12 +40,28 @@ void LEI::circularBufferInsert(unsigned long long src, unsigned long long tgt) {
   buf[buf_top].tgt = tgt;
 }
 
+rain::Region::Node* LEI::
+insertNode(rain::Region* r, rain::Region::Node* last_node, unsigned long long new_addr) {
+  rain::Region::Node* node = new rain::Region::Node(new_addr);
+  rain.insertNodeInRegion(node, r);
+
+  if (!last_node) {
+    rain.setEntry(node);
+  } else {
+    rain.setEntry(node);
+    rain.setExit(node);
+    r->createInnerRegionEdge(last_node, node);
+  }
+
+  return node;
+}
+
 void LEI::formTrace(unsigned long long start, int old) {
   unsigned long long prev = start;
 
   rain::Region* r = nullptr;
   rain::Region::Node* last_node = NULL;
-  for (int branch = old+1; (branch % MAX_SIZE_BUFFER) < buf_top; branch++) {
+  for (int branch = old+1; (branch % MAX_SIZE_BUFFER) <= buf_top; branch++) {
     unsigned long long branch_src = buf[branch % MAX_SIZE_BUFFER].src;
     unsigned long long branch_tgt = buf[branch % MAX_SIZE_BUFFER].tgt;
 
@@ -56,49 +72,22 @@ void LEI::formTrace(unsigned long long start, int old) {
         if (rain.code_cache.count(*it) != 0) {
           if (r && last_node)
             rain.createInterRegionEdge(last_node, rain.code_cache[*it]);
-
           break;
         }
 
         if (!r) {
           r = rain.createRegion();
         }
-        rain::Region::Node* node = new rain::Region::Node(*it);
-        rain.insertNodeInRegion(node, r);
-
-        if (!last_node) {
-          rain.setEntry(node);
-        } else {
-          rain.setEntry(node);
-          rain.setExit(node);
-          r->createInnerRegionEdge(last_node, node);
-        }
-        last_node = node;
-        if (*it == branch_src) {
-          break;
-        }
+        last_node = insertNode(r, last_node, *it);
         ++it;
     }
 
     if (*it == branch_src) {
-        if (!r) { 
+        if (!r)
           r = rain.createRegion();
-        }
-        rain::Region::Node* node = new rain::Region::Node(*it);
-        rain.insertNodeInRegion(node, r);
-
-        if (!last_node) {
-          rain.setEntry(node);
-        } else {
-          rain.setEntry(node);
-          rain.setExit(node);
-          r->createInnerRegionEdge(last_node, node);
-        }
-        last_node = node;
-        if (*it == branch_src) {
-          break;
-        }
+        last_node = insertNode(r, last_node, *it);
     }
+
     // Stop if branch forms a cycle
     if (r) {
       if(r->getNode(branch_tgt) != nullptr || branch_tgt == prev) break;
@@ -159,7 +148,7 @@ void LEI::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
           formTrace(tgt, old);
 
           // remove all elements of Buf after old
-          for (int branch = old+1; (branch % MAX_SIZE_BUFFER) < buf_top; branch++)
+          for (int branch = old+1; (branch % MAX_SIZE_BUFFER) <= buf_top; branch++)
             buf_hash.erase(buf[branch % MAX_SIZE_BUFFER].tgt);
           buf_top = (old+1) % MAX_SIZE_BUFFER;
 

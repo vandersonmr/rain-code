@@ -282,13 +282,15 @@ namespace rf_technique {
 
     set<unsigned long long> &instructions;
 
-    #define MAX_SIZE_BUFFER 100000
+    #define MAX_SIZE_BUFFER 500
     int buf_top = 0;
 
     struct branch_t {
       unsigned long long src;
       unsigned long long tgt;
     };
+
+    rain::Region::Node* insertNode(rain::Region*, rain::Region::Node*, unsigned long long);
 
     branch_t buf[MAX_SIZE_BUFFER];
     unordered_map<unsigned long long, int> buf_hash;
