@@ -225,15 +225,6 @@ Region::Edge* RAIn::queryNext(unsigned long long next_ip)
   else {
     // Region node
     Region::Edge* edge = cur_node->findOutEdge(next_ip);
-    // If it is a branch inside of the region, we need to add the new edge
-    if (edge == NULL && code_cache.count(next_ip) != 0) {
-      Region::Node* node = code_cache[next_ip];
-      // Check whether the target is in the same region
-      if (cur_node->region->id == node->region->id) {
-        return node->region->createInnerRegionEdge(cur_node, node);
-      }
-    }
-
     return edge;
   }
 }
@@ -248,10 +239,11 @@ Region::Edge* RAIn::addNext(unsigned long long next_ip)
   // Search for region entries.
   unordered_map<unsigned long long, Region::Node*>::iterator it = 
     region_entry_nodes.find(next_ip);
-  if(it != region_entry_nodes.end())
+  if(it != region_entry_nodes.end()) { 
     next_node = it->second;
-  else
+  } else {
     next_node = NULL;
+  }
 
   if (cur_node == nte) {
     if (next_node == NULL) {

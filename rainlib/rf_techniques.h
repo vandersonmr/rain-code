@@ -173,7 +173,6 @@ namespace rf_technique {
               rain.region_entry_nodes.end());
         #endif
           rain.setEntry(node);
-          cout << dec << r->id << " > " << hex << addr << endl;
         }
         else {
           // Successive nodes
@@ -273,7 +272,7 @@ namespace rf_technique {
     void process(unsigned long long cur_addr, char cur_opcode[16], char unsigned cur_length, 
         unsigned long long nxt_addr, char nxt_opcode[16], char unsigned nxt_length);
 
-    void finish() {};
+    void finish();
 
   private:
 
