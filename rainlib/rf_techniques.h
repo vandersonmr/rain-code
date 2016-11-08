@@ -27,6 +27,7 @@
 
 #include <unordered_map>
 #include <vector>
+#include <set>
 #include <deque>
 #include <memory>
 
@@ -42,8 +43,8 @@
 #endif
 
 namespace rf_technique {
-  static unsigned long long system_threshold;
-  static bool mix_usr_sys;
+  static unsigned long long system_threshold = 0xB2D05E00; // FIXME
+  static bool mix_usr_sys = false;
 
   /** Instruction hotness profiler. */
   struct profiler_t {
@@ -114,7 +115,7 @@ namespace rf_technique {
   public:
     virtual void 
       process(unsigned long long cur_addr, char cur_opcode[16], 
-          char unsigned cur_length, 
+          char unsigned cur_length,
           unsigned long long nxt_addr, char nxt_opcode[16], 
           char unsigned nxt_length) = 0;
 
@@ -162,16 +163,17 @@ namespace rf_technique {
       for (auto addr : recording_buffer.addresses) {
 
         rain::Region::Node* node = new rain::Region::Node(addr);
-        r->insertNode(node);
+        rain.insertNodeInRegion(node, r);
 
         if (!last_node) {
           // First node
         #ifdef DEBUG
           // Make sure there were no region associated with the entry address.
-          assert(rain.region_entry_nodes.find(node->getAddress()) == 
+          assert(rain.region_entry_nodes.find(node->getAddress()) ==
               rain.region_entry_nodes.end());
         #endif
           rain.setEntry(node);
+          cout << dec << r->id << " > " << hex << addr << endl;
         }
         else {
           // Successive nodes
@@ -264,7 +266,7 @@ namespace rf_technique {
   {
   public:
 
-    LEI(vector<unsigned long long> &inst)
+    LEI(set<unsigned long long> &inst)
       : recording(false), last_addr(0), instructions(inst)
     { std::cout << "Initing LEI\n" << std::endl; profiler.set_hot_threshold(35); }
 
@@ -279,11 +281,17 @@ namespace rf_technique {
     unsigned long long last_addr;
     unordered_map<unsigned long long, bool> recorded;
 
-    vector<unsigned long long> &instructions;
+    set<unsigned long long> &instructions;
 
-    #define MAX_SIZE_BUFFER 500
+    #define MAX_SIZE_BUFFER 100000
     int buf_top = 0;
-    unsigned long long buf[MAX_SIZE_BUFFER];
+
+    struct branch_t {
+      unsigned long long src;
+      unsigned long long tgt;
+    };
+
+    branch_t buf[MAX_SIZE_BUFFER];
     unordered_map<unsigned long long, int> buf_hash;
     unordered_map<unsigned long long, bool> code_cache;
     void circularBufferInsert(unsigned long long, unsigned long long);

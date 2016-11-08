@@ -31,7 +31,7 @@ using namespace std;
 
 namespace rain {
 
-  /** 
+  /**
    *  @brief A Region object represents a region of code.
    */
   class Region {
@@ -191,6 +191,14 @@ namespace rain {
 
     /** Map region identifiers to regions. */
     map<unsigned, Region*> regions;
+
+    /** Map instruction address to nodes (regions). */
+    map<unsigned long long, Region::Node*> code_cache;
+
+    void insertNodeInRegion(Region::Node* node, Region* reg) {
+      reg->insertNode(node);
+      code_cache[node->getAddress()] = node;
+    }
 
     /** NTE node */
     Region::Node* nte;

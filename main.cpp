@@ -144,7 +144,7 @@ int validate_arguments()
   return 0;
 }
 
-vector<unsigned long long>* load_binary(string binary_path) {
+set<unsigned long long>* load_binary(string binary_path) {
   ud_t ud_obj;
   ud_init(&ud_obj);
 
@@ -158,20 +158,20 @@ vector<unsigned long long>* load_binary(string binary_path) {
   ud_set_syntax(&ud_obj, UD_SYN_INTEL);
 
   // Iterate over all sections until find the .text section
-  vector<unsigned long long>* instructions = new vector<unsigned long long>;
+  set<unsigned long long>* instructions = new set<unsigned long long>;
   for (int i = 0; i < sec_num; ++i) {
     section* psec = reader.sections[i];
-    if (psec->get_data() != NULL) {
-      std::cout << psec->get_name() << std::endl;
+    if (psec->get_name() == ".text" || psec->get_name() == ".init" ||
+        psec->get_name() == ".fini" || psec->get_name() == ".plt") {
       // Prepare the .text section to be disassembled
       ud_set_input_buffer(&ud_obj, (unsigned char*) psec->get_data(), psec->get_size());
       ud_set_pc(&ud_obj, psec->get_address());
-      while (ud_disassemble(&ud_obj)) 
-        instructions->push_back(ud_insn_off(&ud_obj));
+
+      while (ud_disassemble(&ud_obj))
+        instructions->insert(ud_insn_off(&ud_obj));
     }
   }
 
-  std::sort(instructions->begin(), instructions->end());
 
   return instructions;
 }
@@ -216,7 +216,7 @@ int main(int argc,char** argv)
       return 1;
     }
 
-    vector<unsigned long long>* code_insts = load_binary(bin_path.get_value());
+    set<unsigned long long>* code_insts = load_binary(bin_path.get_value());
     rf = new rf_technique::LEI(*code_insts);
   } else if (chosen_technique == "mret2") {
     rf = new rf_technique::MRET2();

@@ -36,7 +36,6 @@ using namespace rain;
 void NET::process(unsigned long long cur_addr, char cur_opcode[16], char unsigned cur_length, 
     unsigned long long nxt_addr, char nxt_opcode[16], char unsigned nxt_length)
 {
-
   // Execute TEA transition.
   Region::Edge* edg = rain.queryNext(cur_addr);
   if (!edg) {
@@ -61,10 +60,10 @@ void NET::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
   if (profile_target_instr) {
     profiler.update(cur_addr);
     if (profiler.is_hot(cur_addr) && !recording) {
-        // Start region formation....
-        RF_DBG_MSG("0x" << setbase(16) << cur_addr << " is hot. Start Region formation." << endl);
-        recording_buffer.reset();
-        recording = true;
+      // Start region formation....
+      RF_DBG_MSG("0x" << setbase(16) << cur_addr << " is hot. Start Region formation." << endl);
+      recording_buffer.reset();
+      recording = true;
     }
   }
 
@@ -99,11 +98,11 @@ void NET::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
     }
 
     if (stopRecording) {
-        // Create region and add to RAIn TEA
-        // merge both -> save to recording
-        RF_DBG_MSG("Stop buffering and build new NET region." << endl);
-        recording = false;
-        buildRegion();
+      // Create region and add to RAIn TEA
+      // merge both -> save to recording
+      RF_DBG_MSG("Stop buffering and build new NET region." << endl);
+      recording = false;
+      buildRegion();
     }
     else {
       // Record target instruction on region formation buffer

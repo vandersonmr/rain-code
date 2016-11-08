@@ -35,34 +35,45 @@ using namespace rain;
 #endif
 
 void LEI::circularBufferInsert(unsigned long long src, unsigned long long tgt) {
-  if (buf_top >= MAX_SIZE_BUFFER-2) 
-    buf_top = 0;
-
-  buf[++buf_top] = src;
-  buf[++buf_top] = tgt;
+  buf_top = (buf_top+1) % MAX_SIZE_BUFFER;
+  buf[buf_top].src = src;
+  buf[buf_top].tgt = tgt;
 }
 
 void LEI::formTrace(unsigned long long start, int old) {
   recording_buffer.reset();
   unsigned long long prev = start;
 
-  for (int branch = old+1; (branch % MAX_SIZE_BUFFER) < buf_top; branch += 2) {
-    unsigned long long branch_src = buf[branch];
+  for (int branch = old+1; (branch % MAX_SIZE_BUFFER) < buf_top; branch++) {
+    unsigned long long branch_src = buf[branch % MAX_SIZE_BUFFER].src;
+    unsigned long long branch_tgt = buf[branch % MAX_SIZE_BUFFER].tgt;
 
-    auto it = std::lower_bound(instructions.begin(), instructions.end(), prev);
-    while (it != instructions.end() && *it != buf[branch]) {
-        if (code_cache.count(*it) != 0) break;
+    auto it = instructions.find(prev);
+    while (it != instructions.end() && *it != branch_src) {
+        // Stop if branch forms a cycle
+        if (rain.code_cache.count(*it) != 0) {
+          // if it is entering a region but it is not an entry point, we need
+          // to create this new entry point
+          if (rain.region_entry_nodes.count(*it) == 0) {
+            rain.setEntry(rain.code_cache[*it]);
+          }
+          break;
+        }
+
         recording_buffer.append(*it);
         ++it;
     }
 
-    if (recording_buffer.contains_address(buf[branch])) break;
+    if (*it == branch_src) recording_buffer.append(*it);
 
-    prev = buf[branch+1];
+    // Stop if branch forms a cycle
+    if (recording_buffer.contains_address(branch_tgt) || branch_tgt == prev) break;
+
+    prev = branch_tgt;
   }
 }
 
-long long int total = 0;
+char unsigned last_len = 0;
 void LEI::process(unsigned long long cur_addr, char cur_opcode[16], char unsigned cur_length, 
     unsigned long long nxt_addr, char nxt_opcode[16], char unsigned nxt_length)
 {
@@ -74,15 +85,18 @@ void LEI::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
   rain.executeEdge(edg);
 
   RF_DBG_MSG("0x" << setbase(16) << cur_addr << endl);
+  if (instructions.find(cur_addr) == instructions.end() && !is_system_instr(cur_addr))
+    instructions.insert(cur_addr);
 
   // Profile instructions to detect hot code
+  //
   bool profile_target_instr = false;
-  if ((edg == rain.nte_loop_edge) && abs(cur_addr - last_addr) > 7) {
+  if ((edg == rain.nte_loop_edge) && abs(cur_addr - last_addr) > last_len) {
     // Profile NTE instructions that are target of backward jumps
     profile_target_instr = true;
   }
 
-  if (profile_target_instr) {
+  if (profile_target_instr && !is_system_instr(last_addr) && !is_system_instr(cur_addr)) {
     unsigned long long src = last_addr;
     unsigned long long tgt = cur_addr;
 
@@ -90,16 +104,28 @@ void LEI::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
     if (buf_hash.count(tgt) != 0) {
       int old = buf_hash[tgt];
       buf_hash[tgt] = buf_top;
-      if (tgt <= src) {
+
+      // if tgt ≤ src or old follows exit from code cache
+      bool is_a_cache_exit = (rain.code_cache.count(buf[old].src) != 0 &&
+                             rain.code_cache.count(buf[old].tgt) == 0);
+      if (tgt <= src || is_a_cache_exit) {
+        // increment counter c associated with tgt
         profiler.update(tgt);
-        if (profiler.is_hot(cur_addr)) {
+
+        // if c = Tcyc
+        if (profiler.is_hot(tgt)) {
           // Start region formation....
           RF_DBG_MSG("0x" << setbase(16) << cur_addr << " is hot. Start Region formation." << endl);
+
           formTrace(tgt, old);
-          for (auto I : recording_buffer.addresses)
-            code_cache[I] = true;
           buildRegion();
-          buf_top = old;
+
+          // remove all elements of Buf after old
+          for (int branch = old+1; (branch % MAX_SIZE_BUFFER) < buf_top; branch++)
+            buf_hash.erase(buf[branch % MAX_SIZE_BUFFER].tgt);
+          buf_top = (old+1) % MAX_SIZE_BUFFER;
+
+          // recycle counter associated with tgt
           profiler.reset(tgt);
         }
       }
@@ -109,4 +135,5 @@ void LEI::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
   }
 
   last_addr = cur_addr;
+  last_len = cur_length;
 }

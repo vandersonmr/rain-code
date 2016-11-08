@@ -224,7 +224,17 @@ Region::Edge* RAIn::queryNext(unsigned long long next_ip)
   }
   else {
     // Region node
-    return cur_node->findOutEdge(next_ip);
+    Region::Edge* edge = cur_node->findOutEdge(next_ip);
+    // If it is a branch inside of the region, we need to add the new edge
+    if (edge == NULL && code_cache.count(next_ip) != 0) {
+      Region::Node* node = code_cache[next_ip];
+      // Check whether the target is in the same region
+      if (cur_node->region->id == node->region->id) {
+        return node->region->createInnerRegionEdge(cur_node, node);
+      }
+    }
+
+    return edge;
   }
 }
 
@@ -544,7 +554,7 @@ void RAIn::printRegionDOT(Region* region, ostream& reg)
   reg << "/* nodes */" << endl;
   for (Region::Node* n : region->nodes) {
     node_id[n] = id_gen++;
-    reg << "  n" << node_id[n] << " [label=\"0x" << n->getAddress() << "\"]" << endl;
+    reg << "  n" << node_id[n] << " [label=\"0x" << std::hex << n->getAddress() << "\"]" << endl;
   }
 
   reg << "/* edges */" << endl;
