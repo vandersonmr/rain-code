@@ -54,15 +54,13 @@ void LEI::formTrace(unsigned long long start, int old) {
     while (it != instructions.end() && *it != branch_src) {
         // Stop if branch forms a cycle
         if (rain.code_cache.count(*it) != 0) {
-          if (r && last_node) {
+          if (r && last_node)
             rain.createInterRegionEdge(last_node, rain.code_cache[*it]);
-            rain.setExit(last_node);
-            rain.setEntry(rain.code_cache[*it]);
-          }
+
           break;
         }
 
-        if (!r) { 
+        if (!r) {
           r = rain.createRegion();
         }
         rain::Region::Node* node = new rain::Region::Node(*it);
@@ -92,9 +90,8 @@ void LEI::formTrace(unsigned long long start, int old) {
         if (!last_node) {
           rain.setEntry(node);
         } else {
-          if (*it == prev) {
-            rain.setEntry(node);
-          }
+          rain.setEntry(node);
+          rain.setExit(node);
           r->createInnerRegionEdge(last_node, node);
         }
         last_node = node;
