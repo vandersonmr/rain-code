@@ -26,6 +26,7 @@
 #include <stdlib.h> // exit
 #include <vector>   // vector
 #include <algorithm>// sort
+#include <assert.h>
 
 using namespace std;
 using namespace rain;
@@ -443,6 +444,7 @@ void RAIn::printOverallStats(ostream& stats_f)
   for (auto rit : regions)
   {
     Region* r = rit.second;
+    assert(r != nullptr && "Region is null in printOverallStats");
     total_stat_reg_size += r->nodes.size();
     total_reg_entries += r->externalEntriesFreq();
     total_reg_main_exits += r->mainExitsFreq();
@@ -452,9 +454,8 @@ void RAIn::printOverallStats(ostream& stats_f)
     if (allNodesFreq > 0)
       region_cov.push_back(pair<Region*, unsigned long long>(r, allNodesFreq));
 
-    for (Region::Node* node : r->nodes) 
+    for (Region::Node* node : r->nodes)
       unique_instrs[node->getAddress()] = 1;
-
   }
   unsigned long long total_unique_instrs = unique_instrs.size();
 
@@ -468,6 +469,8 @@ void RAIn::printOverallStats(ostream& stats_f)
   for (rcit=region_cov.begin(); rcit != region_cov.end(); rcit++) {
     acc += rcit->second;
     double coverage = (double) acc / (double) (total_reg_freq+nte_freq);
+
+    assert(total_reg_freq+nte_freq != 0 && "Total_reg_freq is 0 and is dividing");
 
     cov_num_inst += rcit->first->nodes.size();
     cov_num_regs++;
@@ -489,26 +492,28 @@ void RAIn::printOverallStats(ostream& stats_f)
     }
   }
 
-  cout << total_reg_freq + nte_freq << endl;
-
   stats_f << "reg_dyn_inst_count" << "," << total_reg_freq << ",Freq. of instructions emulated by regions" << endl;
   stats_f << "reg_stat_instr_count" << "," << total_stat_reg_size  << ",Static # of instructions translated into regions" << endl;
   stats_f << "reg_uniq_instr_count" << "," << total_unique_instrs << ",# of unique instructions included on regions" << endl;
   stats_f << "reg_dyn_entries" <<  "," << total_reg_entries << ",Regions entry frequency count" << endl;
   stats_f << "number_of_regions" <<  "," << regions.size() << ",Total number of regions" << endl;
   stats_f << "interp_dyn_inst_count" << "," << nte_freq << ",Freq. of instruction emulated by interpretation" << endl;
+
+  assert(total_reg_entries != 0 && "total_reg_entries is 0 and it's dividing");
   stats_f << "avg_dyn_reg_size" << "," << 
     (double) total_reg_freq / (double) total_reg_entries 
     << "," << "Average dynamic region size." << endl;
+
+  assert(regions.size() != 0 && "region.size() is 0 and it's dividing");
   stats_f << "avg_stat_reg_size" << "," << 
     (double) total_stat_reg_size / (double) regions.size() 
     << "," << "Average static region size." << endl;
+
   stats_f << "dyn_reg_coverage" << "," << 
     (double) total_reg_freq / (double) (total_reg_freq + nte_freq)
     << "," << "Dynamic region coverage." << endl;
-  //stats_f << "stat_reg_coverage" << "," << 
-  //  (double) total_reg_freq / (double) (total_reg_freq + total_stat_instr_count)
-  //	  << "Static region coverage: reg_stat_instr_count / (reg_stat_instr_count+total_stat_instr_count)" << endl;
+
+  assert(total_unique_instrs != 0 && "total unique is 0 and it's dividing");
   stats_f << "code_duplication" << "," << 
     (double) total_stat_reg_size / (double) total_unique_instrs
     << "," << "Region code duplication" << endl;
@@ -527,13 +532,6 @@ void RAIn::printOverallStats(ostream& stats_f)
     << "," << "minumun number of static instructions on regions to cover 80% of dynamic execution" << endl;
   stats_f << "90_cover_set_instrs" << "," << _90_cover_set_instrs
     << "," << "minumun number of static instructions on regions to cover 90% of dynamic execution" << endl;
-
-  // Total number of regions (number_of_regions) = regions.size()
-  // 90% cover-set (90_cover_set) =
-  // completion ratio (completion_ratio) = total_reg_main_exits / total_reg_entries 
-  // code duplication (code_duplication)
-  // avg static size  (av_stat_reg_size)
-  // avg dynamic size (avg_dyn_reg_size)
 }
 
 void RAIn::printRegionDOT(Region* region, ostream& reg)

@@ -240,16 +240,19 @@ int main(int argc,char** argv)
 
   //Print statistics
   if (rf) {
+    std::cout << "Printing OverallStats" << std::endl;
     std::string s("test.dot");
-    rf->rain.printRegionsDOT(s);
-
-    ofstream reg_stats_f(reg_stats_fname.get_value().c_str());
-    rf->rain.printRAInStats(reg_stats_f);
-    reg_stats_f.close();
-
     ofstream overall_stats_f(overall_stats_fname.get_value().c_str());
     rf->rain.printOverallStats(overall_stats_f);
     overall_stats_f.close(); 
+
+    std::cout << "Printing Regions Dots" << std::endl;
+    rf->rain.printRegionsDOT(s);
+
+    std::cout << "Printing RAInStats" << std::endl;
+    ofstream reg_stats_f(reg_stats_fname.get_value().c_str());
+    rf->rain.printRAInStats(reg_stats_f);
+    reg_stats_f.close();
   }
 
   return 0; // Return OK.

@@ -282,7 +282,7 @@ namespace rf_technique {
 
     set<unsigned long long> &instructions;
 
-    #define MAX_SIZE_BUFFER 500
+    #define MAX_SIZE_BUFFER 50000000
     int buf_top = 0;
 
     struct branch_t {
@@ -296,6 +296,7 @@ namespace rf_technique {
     unordered_map<unsigned long long, int> buf_hash;
     unordered_map<unsigned long long, bool> code_cache;
     void circularBufferInsert(unsigned long long, unsigned long long);
+    bool is_followed_by_exit(int);
     void formTrace(unsigned long long, int);
 
     using RF_Technique::buildRegion;

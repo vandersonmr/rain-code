@@ -48,8 +48,6 @@ insertNode(rain::Region* r, rain::Region::Node* last_node, unsigned long long ne
   if (!last_node) {
     rain.setEntry(node);
   } else {
-    rain.setEntry(node);
-    rain.setExit(node);
     r->createInnerRegionEdge(last_node, node);
   }
 
@@ -66,30 +64,39 @@ void LEI::formTrace(unsigned long long start, int old) {
     unsigned long long branch_tgt = buf[branch % MAX_SIZE_BUFFER].tgt;
 
     auto it = instructions.find(prev);
-    bool first = true;
     while (it != instructions.end() && *it != branch_src) {
         if (rain.code_cache.count(*it) != 0) {
-          if (r && last_node)
-            rain.createInterRegionEdge(last_node, rain.code_cache[*it]);
+          if (last_node && r) {
+            if (rain.code_cache[*it]->region->id == r->id) {
+              r->createInnerRegionEdge(last_node, rain.code_cache[*it]);
+            } else {
+              rain.setEntry(rain.code_cache[*it]);
+              rain.setExit(last_node);
+            }
+          }
           break;
         }
 
-        if (!r) {
+        if (!r)
           r = rain.createRegion();
-        }
         last_node = insertNode(r, last_node, *it);
         ++it;
     }
 
     if (*it == branch_src) {
-        if (!r)
-          r = rain.createRegion();
-        last_node = insertNode(r, last_node, *it);
+      if (!r)
+        r = rain.createRegion();
+      last_node = insertNode(r, last_node, *it);
+      rain.setExit(last_node);
     }
 
     // Stop if branch forms a cycle
     if (r) {
-      if(r->getNode(branch_tgt) != nullptr || branch_tgt == prev) break;
+      if (r->getNode(branch_tgt) != nullptr) {
+        if (last_node)
+          r->createInnerRegionEdge(last_node, r->getNode(branch_tgt));
+        break;
+      }
     }
 
     prev = branch_tgt;
@@ -99,24 +106,45 @@ void LEI::formTrace(unsigned long long start, int old) {
     rain.setExit(last_node);
 }
 
+bool LEI::is_followed_by_exit(int old) {
+  for (int branch = old+1; (branch % MAX_SIZE_BUFFER) <= buf_top; branch++)
+    if(rain.code_cache.count(buf[branch].src) != 0 &&
+       rain.code_cache.count(buf[branch].tgt) == 0) return true;
+
+  return false;
+}
+
+unsigned long long interpreted = 0;
+unsigned long long tdb = 0;
 char unsigned last_len = 0;
 void LEI::process(unsigned long long cur_addr, char cur_opcode[16], char unsigned cur_length, 
     unsigned long long nxt_addr, char nxt_opcode[16], char unsigned nxt_length)
 {
+
+  if (rain.code_cache.count(cur_addr) != 0) {
+    if (rain.code_cache.count(last_addr) != 0) {
+      if (rain.code_cache[cur_addr]->region->id !=
+          rain.code_cache[last_addr]->region->id) {
+        rain.setEntry(rain.code_cache[cur_addr]);
+      }
+    } else {
+      rain.setEntry(rain.code_cache[cur_addr]);
+    }
+  }
   // Execute TEA transition.
   Region::Edge* edg = rain.queryNext(cur_addr);
-
   if (!edg) {
     edg = rain.addNext(cur_addr);
   }
   rain.executeEdge(edg);
 
   RF_DBG_MSG("0x" << setbase(16) << cur_addr << endl);
+
+  // Add cur_addr to instructions set if it's not already there
   if (instructions.find(cur_addr) == instructions.end() && !is_system_instr(cur_addr))
     instructions.insert(cur_addr);
 
   // Profile instructions to detect hot code
-  //
   bool profile_target_instr = false;
   if ((edg == rain.nte_loop_edge) && abs(cur_addr - last_addr) > last_len) {
     // Profile NTE instructions that are target of backward jumps
@@ -133,8 +161,7 @@ void LEI::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
       buf_hash[tgt] = buf_top;
 
       // if tgt ≤ src or old follows exit from code cache
-      bool is_a_cache_exit = (rain.code_cache.count(buf[old+1].src) != 0 &&
-                             rain.code_cache.count(buf[old+1].tgt) == 0);
+      bool is_a_cache_exit = is_followed_by_exit(old);
       if (tgt <= src || is_a_cache_exit) {
         // increment counter c associated with tgt
         profiler.update(tgt);
