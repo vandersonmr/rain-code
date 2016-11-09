@@ -68,7 +68,6 @@ void LEI::formTrace(unsigned long long start, int old) {
     auto it = instructions.find(prev);
     bool first = true;
     while (it != instructions.end() && *it != branch_src) {
-        // Stop if branch forms a cycle
         if (rain.code_cache.count(*it) != 0) {
           if (r && last_node)
             rain.createInterRegionEdge(last_node, rain.code_cache[*it]);
@@ -134,8 +133,8 @@ void LEI::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
       buf_hash[tgt] = buf_top;
 
       // if tgt ≤ src or old follows exit from code cache
-      bool is_a_cache_exit = (rain.code_cache.count(buf[old].src) != 0 &&
-                             rain.code_cache.count(buf[old].tgt) == 0);
+      bool is_a_cache_exit = (rain.code_cache.count(buf[old+1].src) != 0 &&
+                             rain.code_cache.count(buf[old+1].tgt) == 0);
       if (tgt <= src || is_a_cache_exit) {
         // increment counter c associated with tgt
         profiler.update(tgt);
