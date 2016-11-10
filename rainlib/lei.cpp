@@ -42,12 +42,14 @@ void LEI::circularBufferInsert(unsigned long long src, unsigned long long tgt) {
 
 rain::Region::Node* LEI::
 insertNode(rain::Region* r, rain::Region::Node* last_node, unsigned long long new_addr) {
+
   rain::Region::Node* node = new rain::Region::Node(new_addr);
   rain.insertNodeInRegion(node, r);
 
   if (!last_node) {
     rain.setEntry(node);
   } else {
+    rain.setEntry(node);
     r->createInnerRegionEdge(last_node, node);
   }
 
@@ -59,35 +61,37 @@ void LEI::formTrace(unsigned long long start, int old) {
 
   rain::Region* r = nullptr;
   rain::Region::Node* last_node = NULL;
-  for (int branch = old+1; (branch % MAX_SIZE_BUFFER) <= buf_top; branch++) {
-    unsigned long long branch_src = buf[branch % MAX_SIZE_BUFFER].src;
-    unsigned long long branch_tgt = buf[branch % MAX_SIZE_BUFFER].tgt;
+  for (int branch = (old+1) % MAX_SIZE_BUFFER; 
+      branch != buf_top; 
+      branch = (branch + 1) % MAX_SIZE_BUFFER) {
+    unsigned long long branch_src = buf[branch].src;
+    unsigned long long branch_tgt = buf[branch].tgt;
 
     auto it = instructions.find(prev);
-    while (it != instructions.end() && *it != branch_src) {
-        if (rain.code_cache.count(*it) != 0) {
-          if (last_node && r) {
-            if (rain.code_cache[*it]->region->id == r->id) {
-              r->createInnerRegionEdge(last_node, rain.code_cache[*it]);
-            } else {
-              rain.setEntry(rain.code_cache[*it]);
-              rain.setExit(last_node);
-            }
+    while (it != instructions.end()) {
+      if (rain.code_cache.count(*it) != 0) {
+        if (last_node && r) {
+          if (rain.code_cache[*it]->region->id == r->id) {
+            r->createInnerRegionEdge(last_node, rain.code_cache[*it]);
+          } else {
+            rain.setEntry(rain.code_cache[*it]);
+            rain.setExit(last_node);
           }
-          break;
         }
+        break;
+      }
 
-        if (!r)
-          r = rain.createRegion();
-        last_node = insertNode(r, last_node, *it);
-        ++it;
-    }
-
-    if (*it == branch_src) {
       if (!r)
         r = rain.createRegion();
+
       last_node = insertNode(r, last_node, *it);
-      rain.setExit(last_node);
+
+      if (*it == branch_src) {
+        if (last_node)
+          rain.setExit(last_node);
+        break;
+      }
+      ++it;
     }
 
     // Stop if branch forms a cycle
@@ -107,31 +111,18 @@ void LEI::formTrace(unsigned long long start, int old) {
 }
 
 bool LEI::is_followed_by_exit(int old) {
-  for (int branch = old+1; (branch % MAX_SIZE_BUFFER) <= buf_top; branch++)
-    if(rain.code_cache.count(buf[branch].src) != 0 &&
-       rain.code_cache.count(buf[branch].tgt) == 0) return true;
-
+  for (int branch = (old+1) % MAX_SIZE_BUFFER; 
+      branch != buf_top; 
+      branch = (branch + 1) % MAX_SIZE_BUFFER) {
+    if (rain.code_cache.count(buf[branch].src) == 0) return true;
+  }
   return false;
 }
 
-unsigned long long interpreted = 0;
-unsigned long long tdb = 0;
 char unsigned last_len = 0;
 void LEI::process(unsigned long long cur_addr, char cur_opcode[16], char unsigned cur_length, 
     unsigned long long nxt_addr, char nxt_opcode[16], char unsigned nxt_length)
 {
-
-  if (rain.code_cache.count(cur_addr) != 0) {
-    if (rain.code_cache.count(last_addr) != 0) {
-      if (rain.code_cache[cur_addr]->region->id !=
-          rain.code_cache[last_addr]->region->id) {
-        rain.setEntry(rain.code_cache[cur_addr]);
-      }
-    } else {
-      rain.setEntry(rain.code_cache[cur_addr]);
-    }
-  }
-  // Execute TEA transition.
   Region::Edge* edg = rain.queryNext(cur_addr);
   if (!edg) {
     edg = rain.addNext(cur_addr);
@@ -141,21 +132,22 @@ void LEI::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
   RF_DBG_MSG("0x" << setbase(16) << cur_addr << endl);
 
   // Add cur_addr to instructions set if it's not already there
-  if (instructions.find(cur_addr) == instructions.end() && !is_system_instr(cur_addr))
+  if (instructions.find(cur_addr) == instructions.end())
     instructions.insert(cur_addr);
 
   // Profile instructions to detect hot code
   bool profile_target_instr = false;
-  if ((edg == rain.nte_loop_edge) && abs(cur_addr - last_addr) > last_len) {
+  if (rain.code_cache.count(cur_addr) == 0 && abs(cur_addr - last_addr) > last_len) {
     // Profile NTE instructions that are target of backward jumps
     profile_target_instr = true;
   }
 
-  if (profile_target_instr && !is_system_instr(last_addr) && !is_system_instr(cur_addr)) {
+  if (profile_target_instr) {
     unsigned long long src = last_addr;
     unsigned long long tgt = cur_addr;
 
     circularBufferInsert(src, tgt);
+
     if (buf_hash.count(tgt) != 0) {
       int old = buf_hash[tgt];
       buf_hash[tgt] = buf_top;
@@ -174,9 +166,12 @@ void LEI::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
           formTrace(tgt, old);
 
           // remove all elements of Buf after old
-          for (int branch = old+1; (branch % MAX_SIZE_BUFFER) <= buf_top; branch++)
-            buf_hash.erase(buf[branch % MAX_SIZE_BUFFER].tgt);
-          buf_top = (old+1) % MAX_SIZE_BUFFER;
+          for (int branch = (old+1) % MAX_SIZE_BUFFER; 
+              branch != buf_top; 
+              branch = (branch + 1) % MAX_SIZE_BUFFER) {
+            buf_hash.erase(buf[branch].tgt);
+          }
+          buf_top = old+1 % MAX_SIZE_BUFFER;
 
           // recycle counter associated with tgt
           profiler.reset(tgt);

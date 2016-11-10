@@ -282,7 +282,7 @@ namespace rf_technique {
 
     set<unsigned long long> &instructions;
 
-    #define MAX_SIZE_BUFFER 50000000
+    #define MAX_SIZE_BUFFER 500
     int buf_top = 0;
 
     struct branch_t {
