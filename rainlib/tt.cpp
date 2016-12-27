@@ -49,6 +49,8 @@ void TraceTree::expand(rain::Region::Node* header) {
   }
 
   side_exit_region->createInnerRegionEdge(last_node, header);
+
+  rain.countExpansion();
 }
 
 void TraceTree::process(unsigned long long cur_addr, char cur_opcode[16], char unsigned cur_length, 
@@ -70,7 +72,7 @@ void TraceTree::process(unsigned long long cur_addr, char cur_opcode[16], char u
     recording_buffer.reset();
     recording = true;
   }
-  else if ((edg == rain.nte_loop_edge) && (cur_addr <= last_addr)) {
+  else if ((edg == rain.nte_loop_edge) && (cur_addr < last_addr)) {
     // Profile instructions to detect hot code
     profiler.update(cur_addr);
     if (profiler.is_hot(cur_addr) && !recording) {
@@ -83,14 +85,16 @@ void TraceTree::process(unsigned long long cur_addr, char cur_opcode[16], char u
 
   if (recording && is_side_exit) {
     bool outLimit = false;
-    if (recording_buffer.addresses.size() > LIMIT_SIDE_NODE_BRANCH
-        || inner_loop_trial > 3) {
+    if (recording_buffer.addresses.size() > TREE_SIZE_LIMIT
+        || inner_loop_trial > BACK_BRANCH_LIMIT) {
       is_side_exit = false;
       recording = false;
       outLimit = true;
+      recording_buffer.addresses.clear();
       inner_loop_trial = 0;
     }
 
+    // Try to expand!
     if (!outLimit) {
       bool isInHeader = false;
       rain::Region::Node* header = NULL;
@@ -109,7 +113,7 @@ void TraceTree::process(unsigned long long cur_addr, char cur_opcode[16], char u
         recording = false;
       }
       else {
-        if (cur_addr >= nxt_addr)
+        if (cur_addr > nxt_addr)
           inner_loop_trial += 1;
         // Record target instruction on region formation buffer
         RF_DBG_MSG("Recording " << "0x" << setbase(16) <<
@@ -117,8 +121,7 @@ void TraceTree::process(unsigned long long cur_addr, char cur_opcode[16], char u
         recording_buffer.append(cur_addr); //, cur_opcode, cur_length);
       }
     }
-
-  } 
+  }
   else if (recording) {
     // Check for stop conditions.
     // DBG_ASSERT(edg->src == rain.nte);
@@ -128,7 +131,7 @@ void TraceTree::process(unsigned long long cur_addr, char cur_opcode[16], char u
       RF_DBG_MSG("Stopped recording because found a region entry." << endl);
       stopRecording = true;
     }
-    else if (recording_buffer.contains_address(last_addr) && (cur_addr <= last_addr)) {
+    else if (recording_buffer.contains_address(last_addr) && (cur_addr < last_addr)) {
       stopRecording = true;
     }
     else if (recording_buffer.contains_address(cur_addr)) {
@@ -165,4 +168,7 @@ void TraceTree::process(unsigned long long cur_addr, char cur_opcode[16], char u
   }
 
   last_addr = cur_addr;
+}
+
+void TraceTree::finish() {
 }

@@ -127,7 +127,7 @@ namespace rf_technique {
       system_threshold = addr;
     }
 
-    static void is_mix_usr_sys(bool mix) {
+    static void set_mix_usr_sys(bool mix) {
       mix_usr_sys = mix;
     }
 
@@ -349,7 +349,8 @@ namespace rf_technique {
   class TraceTree : public RF_Technique
   {
   public:
-    #define LIMIT_SIDE_NODE_BRANCH 990
+    #define TREE_SIZE_LIMIT 100
+    #define BACK_BRANCH_LIMIT 3
 
     TraceTree() : recording(false), last_addr(0), is_side_exit(false)
     { std::cout << "Initing TraceTree\n" << std::endl; }
@@ -357,7 +358,7 @@ namespace rf_technique {
     void process(unsigned long long cur_addr, char cur_opcode[16], char unsigned cur_length, 
         unsigned long long nxt_addr, char nxt_opcode[16], char unsigned nxt_length);
 
-    void finish() {};
+    void finish();
 
   private:
 

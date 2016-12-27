@@ -116,9 +116,9 @@ int validate_arguments()
   }
 
   if (mix_usr_sys.was_set()) {
-    rf_technique::RF_Technique::is_mix_usr_sys(true);
+    rf_technique::RF_Technique::set_mix_usr_sys(true);
   } else {
-    rf_technique::RF_Technique::is_mix_usr_sys(false);
+    rf_technique::RF_Technique::set_mix_usr_sys(false);
   }
 
 
@@ -171,7 +171,6 @@ set<unsigned long long>* load_binary(string binary_path) {
         instructions->insert(ud_insn_off(&ud_obj));
     }
   }
-
 
   return instructions;
 }

@@ -59,18 +59,20 @@ void LEF::updateOutAddrs(rain::Region* reg, pair_addr e) { // edge == pair<ull, 
 void LEF::mergeRegions(rain::Region* src_reg, unsigned long long src_addr,
     rain::Region* tgt_reg, unsigned long long tgt_addr) {
 
-    tgt_reg->createInnerRegionEdge(src_reg->getNode(src_addr),
-                                   tgt_reg->getNode(tgt_addr));
+    tgt_reg->moveAndDestroy(src_reg, rain.region_entry_nodes);
 
-    for (auto node : src_reg->nodes)
-      node->region = tgt_reg;
+    // Check if already exist an edge
+    rain::Region::Edge* ed = tgt_reg->getNode(src_addr)->findOutEdge(tgt_addr);
+    if (ed) {
+      tgt_reg->region_inner_edges.insert(ed);
+      tgt_reg->exit_nodes.erase(tgt_reg->getNode(src_addr));
+    } else {
+      tgt_reg->createInnerRegionEdge(tgt_reg->getNode(src_addr),
+                                     tgt_reg->getNode(tgt_addr));
+    }
 
-    tgt_reg->nodes.insert(src_reg->nodes.begin(), src_reg->nodes.end());
-    tgt_reg->entry_nodes.insert(src_reg->entry_nodes.begin(), src_reg->entry_nodes.end());
-    tgt_reg->exit_nodes.insert(src_reg->exit_nodes.begin(), src_reg->exit_nodes.end());
-
-    src_reg->alive = false;
     rain.regions.erase(src_reg->id);
+    rain.region_entry_nodes.erase(tgt_addr);
 }
 
 bool LEF::hasComeFromCall(rain::Region* reg) {
@@ -93,13 +95,17 @@ void LEF::expandRegion(rain::Region* reg) {
   while (newNeighbors) {
     newNeighbors = false;
     vector<unsigned long long> entry_addrs_aux;
+    // Iterate over every region
     for (auto pair : reg_out_addrs) {
 
+      // Check if the region is alive
       if (!pair.first->alive) continue;
 
+      // Iterate over all out edges from the region
       for (auto edge : *pair.second) {
+        // If the out edge ends in any of the region entry addrs which is being 
+        // expanded, then both of them are merged.
         auto it = find(entry_addrs.begin(), entry_addrs.end(), edge.second);
-
         if (it != entry_addrs.end()) {
           unsigned long long src_addr = edge.first;
           unsigned long long tgt_addr = edge.second;
@@ -125,6 +131,17 @@ void LEF::expandRegion(rain::Region* reg) {
     entry_addrs.clear();
     entry_addrs = entry_addrs_aux;
   }
+
+  // Check if all inner loops are correctly seted
+  for (auto node : reg->nodes) {
+    for (auto edge = node->in_edges; edge != NULL; edge = edge->next) {
+      Region::Edge* ed = edge->edge;
+      if (ed->src->region == ed->tgt->region && ed->src->region != NULL) { 
+        Region* r = ed->src->region;
+        r->region_inner_edges.insert(ed);
+      }
+    }
+  }
 }
 
 void LEF::process(unsigned long long cur_addr, char cur_opcode[16], char unsigned cur_length, 
@@ -149,7 +166,7 @@ void LEF::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
 
     updateOutAddrs(edg->src->region, make_pair(edg->src->getAddress(), cur_addr));
   }
-  else if ((edg == rain.nte_loop_edge) && (cur_addr <= last_addr)) {
+  else if ((edg == rain.nte_loop_edge) && (cur_addr < last_addr)) {
     // Profile NTE instructions that are target of backward jumps
     profile_target_instr = true;
   }
@@ -163,9 +180,6 @@ void LEF::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
       recording = true;
       retRegion = false;
       callRegion = false;
-
-      if (isCallInst(last_opcode)) 
-        callRegion = true;
     }
   }
 
@@ -178,9 +192,6 @@ void LEF::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
       RF_DBG_MSG("Stopped recording because found a region entry." << endl);
       stopRecording = true;
     }
-    else if (recording_buffer.contains_address(last_addr) && (cur_addr <= last_addr)) {
-      stopRecording = true;
-    }
     else if (isRetInst(cur_opcode)) {
       stopRecording = true;
     }
@@ -191,8 +202,11 @@ void LEF::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
       stopRecording = true;
     }
     else if (recording_buffer.addresses.size() > 1) {
+      if (cur_addr < last_addr) {
+        stopRecording = true;
+      }
       // Only check if buffer alreay has more than one instruction recorded.
-      if (switched_mode(recording_buffer.addresses.back(), cur_addr)) {
+      else if (switched_mode(recording_buffer.addresses.back(), cur_addr)) {
         if (!mix_usr_sys) {
           // switched between user and system mode
           RF_DBG_MSG("Stopped recording because processor switched mode: 0x" << setbase(16) << 
@@ -202,8 +216,11 @@ void LEF::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
       }
     }
 
-    if (isRetInst(cur_opcode)) 
+    if (isRetInst(cur_opcode))
       retRegion = true;
+
+    if (isCallInst(last_opcode))
+      callRegion = true;
 
     if (stopRecording) {
       // Create region and add to RAIn TEA

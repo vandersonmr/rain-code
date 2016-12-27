@@ -48,11 +48,12 @@ void NET::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
   // Profile instructions to detect hot code
   bool profile_target_instr = false;
   if ((edg->src->region != NULL) && edg->tgt == rain.nte) {
+    // FIXME: Original paper doesn't say anything about this! But others do!
     // Profile NTE instructions that are target of regions instructions
     // Region exits
     profile_target_instr = true;
   }
-  else if ((edg == rain.nte_loop_edge) && (cur_addr <= last_addr)) {
+  else if ((edg == rain.nte_loop_edge) && (cur_addr < last_addr)) {
     // Profile NTE instructions that are target of backward jumps
     profile_target_instr = true;
   }
@@ -76,18 +77,12 @@ void NET::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
       RF_DBG_MSG("Stopped recording because found a region entry." << endl);
       stopRecording = true;
     }
-    else if (recording_buffer.contains_address(last_addr) && (cur_addr <= last_addr)) {
-      stopRecording = true;
-    }
-    else if (recording_buffer.contains_address(cur_addr)) {
-      // Hit an instruction already recorded (loop)
-      RF_DBG_MSG("Stopped recording because isnt " << "0x" << setbase(16) << 
-          cur_addr << " is already included on the recording buffer." << endl);
-      stopRecording = true;
-    }
     else if (recording_buffer.addresses.size() > 1) {
+      if (cur_addr < last_addr) {
+        stopRecording = true;
+      }
       // Only check if buffer alreay has more than one instruction recorded.
-      if (switched_mode(recording_buffer.addresses.back(), cur_addr)) {
+      else if (switched_mode(recording_buffer.addresses.back(), cur_addr)) {
         if (!mix_usr_sys) {
           // switched between user and system mode
           RF_DBG_MSG("Stopped recording because processor switched mode: 0x" << setbase(16) << 

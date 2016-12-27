@@ -22,7 +22,7 @@ cmake_minimum_required (VERSION 2.6)
 
 project (RAIn)
 
-set(CMAKE_CXX_FLAGS "-std=c++11 -g -O2")
+set(CMAKE_CXX_FLAGS "-std=c++11 -g -Ofast")
 
 # Add libraries
 add_subdirectory(arglib)

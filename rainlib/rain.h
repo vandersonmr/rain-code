@@ -67,6 +67,7 @@ namespace rain {
       Edge* findOutEdge(unsigned long long next_ip);
       Edge* findOutEdge(Node* target) const;
       Edge* findInEdge(Node* target) const;
+      Edge* findInEdge(unsigned long long prev_ip);
 
     public:
 
@@ -130,7 +131,7 @@ namespace rain {
       nodes.insert(node);
     }
     void setEntryNode(Node* node)
-    {entry_nodes.insert(node);}
+    { entry_nodes.insert(node); }
     void setExitNode(Node* node)
     {exit_nodes.insert(node);}
     Edge* createInnerRegionEdge(Node* src, Node* tgt);
@@ -155,11 +156,13 @@ namespace rain {
     /** List of pointers to region in edges. */
     EdgeListItem* reg_in_edges;
 
+    /** Move every pointer from one region to another and deletes the other **/
+    void moveAndDestroy(Region*, unordered_map<unsigned long long, Node*>&);
+
     bool isInnerEdge(Edge* e) const;
 
     /** Region inner edges. */
-    list<Edge* > region_inner_edges;
-
+    set<Edge*> region_inner_edges;
   };
 
   /** 
@@ -187,6 +190,7 @@ namespace rain {
 
     unsigned region_id_generator;
 
+    unsigned expansions = 0;
   public:
 
     /** Map region identifiers to regions. */
@@ -234,6 +238,9 @@ namespace rain {
       }
       regions.clear();
     }
+  
+    void countExpansion() { expansions++; };
+    unsigned getNumOfExpansions() { return expansions; };
 
     /** Return the edge that will be followed if the next_ip is executed. */
     Region::Edge* queryNext(unsigned long long next_ip);
