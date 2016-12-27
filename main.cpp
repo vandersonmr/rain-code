@@ -58,6 +58,8 @@ clarg::argBool wt("-wt", "windows trace. System/user address threshold = 0xF9CCD
 
 void usage(char* prg_name) 
 {
+  cout << "Version: 0.9.1" << endl << endl;
+
   cout << "Usage: " << prg_name << " -b trace_path -s index -e index [-h] [-o stats.csv] {-lt|-wt}" 
     << endl << endl;
 

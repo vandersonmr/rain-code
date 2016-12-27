@@ -637,6 +637,12 @@ void RAIn::printRegionDOT(Region* region, ostream& reg)
   unsigned id_gen = 1;
   // For each node.
   reg << "/* nodes */" << endl;
+  reg << "/* entry: ";
+  for (Region::Node* n : region->entry_nodes) {
+    reg << "0x" << std::hex << n->getAddress() << std::dec << " ";
+  }
+  reg << " */" << endl;
+
   for (Region::Node* n : region->nodes) {
     node_id[n] = id_gen++;
     reg << "  n" << node_id[n] << " [label=\"0x" << std::hex << n->getAddress() << "\"]" << endl;
