@@ -169,6 +169,3 @@ void TraceTree::process(unsigned long long cur_addr, char cur_opcode[16], char u
 
   last_addr = cur_addr;
 }
-
-void TraceTree::finish() {
-}

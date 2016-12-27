@@ -86,6 +86,10 @@ namespace rf_technique {
       hot_threshold = threshold;
     }
 
+    unsigned getNumOfCounters() {
+      return instr_freq_counter.size();
+    }
+
   private:
     unsigned hot_threshold;
   };
@@ -119,7 +123,9 @@ namespace rf_technique {
           unsigned long long nxt_addr, char nxt_opcode[16], 
           char unsigned nxt_length) = 0;
 
-    virtual void finish() = 0;
+    void finish() {
+      rain.setNumOfCounters(profiler.getNumOfCounters());
+    };
 
     rain::RAIn rain;
 
@@ -206,8 +212,6 @@ namespace rf_technique {
     void process(unsigned long long cur_addr, char cur_opcode[16], char unsigned cur_length, 
         unsigned long long nxt_addr, char nxt_opcode[16], char unsigned nxt_length);
 
-    void finish();
-
   private:
 
     bool recording;
@@ -229,8 +233,6 @@ namespace rf_technique {
 
     void process(unsigned long long cur_addr, char cur_opcode[16], char unsigned cur_length, 
         unsigned long long nxt_addr, char nxt_opcode[16], char unsigned nxt_length);
-
-    void finish();
 
   private:
     typedef pair<unsigned long long, unsigned long long> pair_addr;
@@ -271,8 +273,6 @@ namespace rf_technique {
 
     void process(unsigned long long cur_addr, char cur_opcode[16], char unsigned cur_length, 
         unsigned long long nxt_addr, char nxt_opcode[16], char unsigned nxt_length);
-
-    void finish();
 
   private:
 
@@ -319,8 +319,6 @@ namespace rf_technique {
     void process(unsigned long long cur_addr, char cur_opcode[16], char unsigned cur_length, 
         unsigned long long nxt_addr, char nxt_opcode[16], char unsigned nxt_length);
 
-    void finish() {};
-
   private:
 
     bool recording;
@@ -357,8 +355,6 @@ namespace rf_technique {
 
     void process(unsigned long long cur_addr, char cur_opcode[16], char unsigned cur_length, 
         unsigned long long nxt_addr, char nxt_opcode[16], char unsigned nxt_length);
-
-    void finish();
 
   private:
 

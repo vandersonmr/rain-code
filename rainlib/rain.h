@@ -114,9 +114,11 @@ namespace rain {
 
   public:
 
+    bool spanned_cycle;
     bool alive; // if false, the region has been deleted
-    Region() : reg_out_edges(NULL), reg_in_edges(NULL), alive(true) 
-    {}
+
+    Region() : reg_out_edges(NULL), reg_in_edges(NULL), alive(true),
+                spanned_cycle(false) {}
     ~Region();
 
     unsigned long long allNodesFreq() const;
@@ -191,6 +193,8 @@ namespace rain {
     unsigned region_id_generator;
 
     unsigned expansions = 0;
+    unsigned region_transitions = 0;
+    unsigned number_of_counters = 0;
   public:
 
     /** Map region identifiers to regions. */
@@ -240,7 +244,7 @@ namespace rain {
     }
   
     void countExpansion() { expansions++; };
-    unsigned getNumOfExpansions() { return expansions; };
+    void setNumOfCounters(unsigned s) { number_of_counters = s; };
 
     /** Return the edge that will be followed if the next_ip is executed. */
     Region::Edge* queryNext(unsigned long long next_ip);

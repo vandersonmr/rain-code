@@ -371,6 +371,19 @@ void RAIn::executeEdge(Region::Edge* edge)
   cur_node = edge->tgt;
   edge->freq_counter++;
   cur_node->freq_counter++;
+
+  if (edge->src->region != 0 && edge->tgt->region != 0) {
+    Region* src_reg = edge->src->region;
+    Region* tgt_reg = edge->tgt->region;
+
+    if (src_reg != tgt_reg)
+      region_transitions++;
+    else if (!tgt_reg->spanned_cycle &&
+              region_entry_nodes.count(edge->target()) != 0 &&
+              edge->target() < edge->source())
+      tgt_reg->spanned_cycle = true;
+  }
+
 }
 
 Region* RAIn::createRegion()
@@ -523,6 +536,7 @@ void RAIn::printOverallStats(ostream& stats_f)
   unsigned long long total_reg_freq = 0;
   unsigned long long nte_freq = nte->freq_counter;
   unsigned long long total_reg_oficial_exit = 0;
+  unsigned long long total_spanned_cycles = 0;
   map<unsigned long long,unsigned> unique_instrs;
   unsigned long long _70_cover_set_regs = 0;
   unsigned long long _80_cover_set_regs = 0;
@@ -542,6 +556,8 @@ void RAIn::printOverallStats(ostream& stats_f)
     total_stat_reg_size += r->nodes.size();
     total_reg_entries += r->externalEntriesFreq();
     total_reg_main_exits += r->mainExitsFreq();
+
+    if (r->spanned_cycle) total_spanned_cycles++;
 
     unsigned long long allNodesFreq = r->allNodesFreq();
     total_reg_freq += allNodesFreq;
@@ -594,8 +610,8 @@ void RAIn::printOverallStats(ostream& stats_f)
   stats_f << "interp_dyn_inst_count" << "," << nte_freq << ",Freq. of instruction emulated by interpretation" << endl;
 
   assert(total_reg_entries != 0 && "total_reg_entries is 0 and it's dividing");
-  stats_f << "avg_dyn_reg_size" << "," << 
-    (double) total_reg_freq / (double) total_reg_entries 
+  stats_f << "avg_dyn_reg_size" << "," <<
+    (double) total_reg_freq / (double) total_reg_entries
     << "," << "Average dynamic region size." << endl;
 
   assert(regions.size() != 0 && "region.size() is 0 and it's dividing");
@@ -614,7 +630,15 @@ void RAIn::printOverallStats(ostream& stats_f)
   stats_f << "completion_ratio" << "," << 
     (double) total_reg_main_exits / (double) total_reg_entries
     << "," << "Completion Ratio" << endl;
-  stats_f << "expasions_num" << "," << getNumOfExpansions() << "," << "Number of Expansions" << endl;
+
+  stats_f << "num_expasions" << "," << expansions << "," << "Number of Expansions" << endl;
+  stats_f << "region_transitions" << "," << region_transitions << ","
+    << "Number of regions transitions" << endl;
+  stats_f << "num_counters" << "," << number_of_counters << ","
+    << "Number of used counters" << endl;
+  stats_f << "spanned_cycles" << "," << total_spanned_cycles / (double) regions.size() << ","
+    << "Spanned Cycle Ratio" << endl;
+
   stats_f << "70_cover_set_regs" << "," << _70_cover_set_regs
     << "," << "minumun number of regions to cover 70% of dynamic execution" << endl;
   stats_f << "80_cover_set_regs" << "," << _80_cover_set_regs

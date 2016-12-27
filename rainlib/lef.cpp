@@ -246,7 +246,3 @@ void LEF::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
   strncpy(last_opcode, cur_opcode, 16);
   last_addr = cur_addr;
 }
-
-void LEF::finish() {
-
-}
