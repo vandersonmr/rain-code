@@ -114,11 +114,9 @@ namespace rain {
 
   public:
 
-    bool spanned_cycle;
     bool alive; // if false, the region has been deleted
 
-    Region() : reg_out_edges(NULL), reg_in_edges(NULL), alive(true),
-                spanned_cycle(false) {}
+    Region() : reg_out_edges(NULL), reg_in_edges(NULL), alive(true) {}
     ~Region();
 
     unsigned long long allNodesFreq() const;
@@ -126,6 +124,7 @@ namespace rain {
     unsigned long long exitNodesFreq() const;
     unsigned long long externalEntriesFreq() const;
     unsigned long long mainExitsFreq() const;
+    bool isSpannedCycle() const;
 
     void insertNode(Node * node)
     {
@@ -195,17 +194,14 @@ namespace rain {
     unsigned expansions = 0;
     unsigned region_transitions = 0;
     unsigned number_of_counters = 0;
+    unsigned long long executed_freq = 0;
   public:
 
     /** Map region identifiers to regions. */
     map<unsigned, Region*> regions;
 
-    /** Map instruction address to nodes (regions). */
-    map<unsigned long long, Region::Node*> code_cache;
-
     void insertNodeInRegion(Region::Node* node, Region* reg) {
       reg->insertNode(node);
-      code_cache[node->getAddress()] = node;
     }
 
     /** NTE node */
@@ -220,6 +216,9 @@ namespace rain {
 
     /** Hash table for entry nodes. */
     unordered_map<unsigned long long, Region::Node*> region_entry_nodes;
+
+    /** Hash table for region start freq. */
+    unordered_map<unsigned, unsigned long long> region_start_freq;
 
     RAIn() : region_id_generator(1) // id 0 is reserved for NTE
     {

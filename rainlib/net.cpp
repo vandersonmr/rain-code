@@ -77,19 +77,11 @@ void NET::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
       RF_DBG_MSG("Stopped recording because found a region entry." << endl);
       stopRecording = true;
     }
-    else if (recording_buffer.addresses.size() > 1) {
-      if (cur_addr < last_addr) {
-        stopRecording = true;
-      }
-      // Only check if buffer alreay has more than one instruction recorded.
-      else if (switched_mode(recording_buffer.addresses.back(), cur_addr)) {
-        if (!mix_usr_sys) {
-          // switched between user and system mode
-          RF_DBG_MSG("Stopped recording because processor switched mode: 0x" << setbase(16) << 
-              last_addr << " -> 0x" << cur_addr << endl);
-          stopRecording = true;
-        }
-      }
+    else if (recording_buffer.addresses.size() > MAX_INST_REG) {
+      stopRecording = true;
+    }
+    else if (recording_buffer.addresses.size() > 1 && cur_addr < last_addr) {
+      stopRecording = true;
     }
 
     if (stopRecording) {
@@ -100,10 +92,12 @@ void NET::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
       buildRegion();
     }
     else {
-      // Record target instruction on region formation buffer
-      RF_DBG_MSG("Recording " << "0x" << setbase(16) <<
-          cur_addr << " on the recording buffer" << endl);
-      recording_buffer.append(cur_addr); //, cur_opcode, cur_length);
+      if (is_region_addr_space(cur_addr)) {
+        // Record target instruction on region formation buffer
+        RF_DBG_MSG("Recording " << "0x" << setbase(16) <<
+            cur_addr << " on the recording buffer" << endl);
+        recording_buffer.append(cur_addr); //, cur_opcode, cur_length);
+      }
     }
   }
 

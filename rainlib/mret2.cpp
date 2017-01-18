@@ -52,20 +52,14 @@ void MRET2::mergePhases()
   end2 = recording_buffer.addresses.back();
 
   while(addr1 != end1 && addr2 != end2) {
-    if(addr1 < addr2) {
-      i++;
-      addr1 = recording_buffer_tmp.addresses[i];
-    }
-    else if(addr2 < addr1){
-      j++;
-      addr2 = recording_buffer.addresses[j];
-    }
-    else{
+    if(addr1 == addr2) {
       recording_buffer_aux.append(recording_buffer_tmp.addresses[i]);
       i++;
       j++;
       addr1 = recording_buffer_tmp.addresses[i];
       addr2 = recording_buffer.addresses[j];
+    } else {
+      break;
     }
   }
 
@@ -144,15 +138,6 @@ void MRET2::process(unsigned long long cur_addr, char cur_opcode[16], char unsig
       if (cur_addr < last_addr) {
         stopRecording = true;
       }
-      // Only check if buffer alreay has more than one instruction recorded.
-      else if (switched_mode(recording_buffer.addresses.back(), cur_addr)) {
-        if (!mix_usr_sys) {
-          // switched between user and system mode
-          RF_DBG_MSG("Stopped recording because processor switched mode: 0x" << setbase(16) << 
-              last_addr << " -> 0x" << cur_addr << endl);
-          stopRecording = true;
-        }
-      }
     }
 
     if (stopRecording) {
@@ -176,7 +161,8 @@ void MRET2::process(unsigned long long cur_addr, char cur_opcode[16], char unsig
       }
       recording = false;
     } else {
-      recording_buffer.append(cur_addr);
+      if (is_region_addr_space(cur_addr))
+        recording_buffer.append(cur_addr);
     }
   }
 

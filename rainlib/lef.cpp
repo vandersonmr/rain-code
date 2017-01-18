@@ -38,12 +38,12 @@ using namespace rain;
 
 bool LEF::isRetInst(char cur_opcode[16]) {
   int opcode = (int) (unsigned char) cur_opcode[0];
-  return (opcode == 195 || opcode == 194 || opcode == 202 || opcode == 203);
+  return (opcode == 0xc3);
 }
 
 bool LEF::isCallInst(char cur_opcode[16]) {
   int opcode = (int) (unsigned char) cur_opcode[0];
-  return (opcode == 232 || opcode == 154);
+  return (opcode == 0xe8 || opcode == 0xff || opcode == 0x9a);
 }
 
 void LEF::updateOutAddrs(rain::Region* reg, pair_addr e) { // edge == pair<ull, ull>
@@ -116,7 +116,7 @@ void LEF::expandRegion(rain::Region* reg) {
             tgt_reg = rain.region_entry_nodes[tgt_addr]->region;
 
           if (hasComeFromCall(src_reg))
-            return;
+            goto exit;
 
           if (tgt_reg != nullptr) {
             insertEntryAddrs(src_reg, entry_addrs_aux);
@@ -132,6 +132,7 @@ void LEF::expandRegion(rain::Region* reg) {
     entry_addrs = entry_addrs_aux;
   }
 
+  exit:
   // Check if all inner loops are correctly seted
   for (auto node : reg->nodes) {
     for (auto edge = node->in_edges; edge != NULL; edge = edge->next) {
@@ -142,6 +143,8 @@ void LEF::expandRegion(rain::Region* reg) {
       }
     }
   }
+
+  rain.countExpansion();
 }
 
 void LEF::process(unsigned long long cur_addr, char cur_opcode[16], char unsigned cur_length, 
@@ -205,15 +208,6 @@ void LEF::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
       if (cur_addr < last_addr) {
         stopRecording = true;
       }
-      // Only check if buffer alreay has more than one instruction recorded.
-      else if (switched_mode(recording_buffer.addresses.back(), cur_addr)) {
-        if (!mix_usr_sys) {
-          // switched between user and system mode
-          RF_DBG_MSG("Stopped recording because processor switched mode: 0x" << setbase(16) << 
-              last_addr << " -> 0x" << cur_addr << endl);
-          stopRecording = true;
-        }
-      }
     }
 
     if (isRetInst(cur_opcode))
@@ -231,15 +225,18 @@ void LEF::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
       if (r != nullptr) {
         if (callRegion)
           came_from_call[r] = true;
+
         if (retRegion)
           expandRegion(r);
       }
     }
     else {
-      // Record target instruction on region formation buffer
-      RF_DBG_MSG("Recording " << "0x" << setbase(16) <<
-          cur_addr << " on the recording buffer" << endl);
-      recording_buffer.append(cur_addr); //, cur_opcode, cur_length);
+      if (is_region_addr_space(cur_addr)) {
+        // Record target instruction on region formation buffer
+        RF_DBG_MSG("Recording " << "0x" << setbase(16) <<
+            cur_addr << " on the recording buffer" << endl);
+        recording_buffer.append(cur_addr); //, cur_opcode, cur_length);
+      }
     }
   }
 

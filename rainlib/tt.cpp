@@ -85,7 +85,7 @@ void TraceTree::process(unsigned long long cur_addr, char cur_opcode[16], char u
 
   if (recording && is_side_exit) {
     bool outLimit = false;
-    if (recording_buffer.addresses.size() > TREE_SIZE_LIMIT
+    if (recording_buffer.addresses.size() > MAX_INST_REG
         || inner_loop_trial > BACK_BRANCH_LIMIT) {
       is_side_exit = false;
       recording = false;
@@ -118,7 +118,9 @@ void TraceTree::process(unsigned long long cur_addr, char cur_opcode[16], char u
         // Record target instruction on region formation buffer
         RF_DBG_MSG("Recording " << "0x" << setbase(16) <<
             cur_addr << " on the recording buffer" << endl);
-        recording_buffer.append(cur_addr); //, cur_opcode, cur_length);
+
+        if (is_region_addr_space(cur_addr))
+          recording_buffer.append(cur_addr); //, cur_opcode, cur_length);
       }
     }
   }
@@ -126,28 +128,28 @@ void TraceTree::process(unsigned long long cur_addr, char cur_opcode[16], char u
     // Check for stop conditions.
     // DBG_ASSERT(edg->src == rain.nte);
     bool stopRecording = false;
-    if (edg->tgt != rain.nte) {
-      // Found region entry
-      RF_DBG_MSG("Stopped recording because found a region entry." << endl);
+    if (recording_buffer.addresses.size() > MAX_INST_REG
+        || inner_loop_trial > BACK_BRANCH_LIMIT) {
+
       stopRecording = true;
-    }
-    else if (recording_buffer.contains_address(last_addr) && (cur_addr < last_addr)) {
-      stopRecording = true;
-    }
-    else if (recording_buffer.contains_address(cur_addr)) {
-      // Hit an instruction already recorded (loop)
-      RF_DBG_MSG("Stopped recording because isnt " << "0x" << setbase(16) << 
-          cur_addr << " is already included on the recording buffer." << endl);
-      stopRecording = true;
-    }
-    else if (recording_buffer.addresses.size() > 1) {
+      recording_buffer.reset();
+      inner_loop_trial = 0;
+
+    } else if (recording_buffer.addresses.size() > 1) {
+      if (recording_buffer.addresses[0] == cur_addr) {
+        // Hit an instruction already recorded (loop)
+        RF_DBG_MSG("Stopped recording because isnt " << "0x" << setbase(16) << 
+            cur_addr << " is already included on the recording buffer." << endl);
+        stopRecording = true;
+      }
       // Only check if buffer alreay has more than one instruction recorded.
-      if (switched_mode(recording_buffer.addresses.back(), cur_addr)) {
+      else if (switched_mode(recording_buffer.addresses.back(), cur_addr)) {
         // switched between user and system mode
         if (!mix_usr_sys) {
           RF_DBG_MSG("Stopped recording because processor switched mode: 0x" << setbase(16) << 
               last_addr << " -> 0x" << cur_addr << endl);
           stopRecording = true;
+          recording_buffer.reset();
         }
       }
     }
@@ -163,7 +165,11 @@ void TraceTree::process(unsigned long long cur_addr, char cur_opcode[16], char u
       // Record target instruction on region formation buffer
       RF_DBG_MSG("Recording " << "0x" << setbase(16) <<
           cur_addr << " on the recording buffer" << endl);
-      recording_buffer.append(cur_addr); //, cur_opcode, cur_length);
+      if (cur_addr > nxt_addr)
+        inner_loop_trial += 1;
+
+      if (is_region_addr_space(cur_addr))
+        recording_buffer.append(cur_addr); //, cur_opcode, cur_length);
     }
   }
 

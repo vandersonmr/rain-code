@@ -26,6 +26,7 @@
 #include "arglib.h"
 
 #include <unordered_map>
+#include <map>
 #include <vector>
 #include <set>
 #include <deque>
@@ -46,6 +47,35 @@ namespace rf_technique {
   static unsigned long long system_threshold = 0xB2D05E00; // FIXME
   static bool mix_usr_sys = false;
 
+  class InstructionSet {
+    map<unsigned long long, char[16]> instructions;
+  public:
+
+    map<unsigned long long, char[16]>::const_iterator find(unsigned long long addrs) const {
+      return instructions.find(addrs);
+    }
+
+    map<unsigned long long, char[16]>::const_iterator getEnd() const {
+      return instructions.end();
+    }
+
+    const char* getOpcode(unsigned long long addrs) const {
+      return instructions.at(addrs);
+    }
+
+    bool hasInstruction(unsigned long long addrs) const {
+      return instructions.count(addrs) != 0;
+    }
+
+    void addInstruction(unsigned long long addrs, char opcode[16]) {
+      for (int i = 0; i < 16; i++)
+        instructions[addrs][i] = opcode[i];
+    }
+
+    size_t size() {
+      return instructions.size();
+    }
+  };
   /** Instruction hotness profiler. */
   struct profiler_t {
     profiler_t() : hot_threshold(50) {};
@@ -137,6 +167,8 @@ namespace rf_technique {
       mix_usr_sys = mix;
     }
 
+    bool pauseRecording = false;
+
   protected:
     bool is_system_instr(unsigned long long addr)
     {
@@ -150,7 +182,13 @@ namespace rf_technique {
 
     bool switched_mode(unsigned long long src, unsigned long long tgt)
     {
+      //return false;
       return (is_system_instr(src) != is_system_instr(tgt));
+    }
+
+    bool is_region_addr_space(unsigned long long tgt) {
+      return recording_buffer.addresses.size() == 0 ||
+        (!switched_mode(recording_buffer.addresses.front(), tgt) || mix_usr_sys);
     }
 
     profiler_t profiler;
@@ -220,6 +258,34 @@ namespace rf_technique {
     using RF_Technique::buildRegion;
   };
 
+  /** 
+   * Class to evaluate the NETPlus (NET+) region formation
+   * technique.
+   */
+  class NETPlus : public RF_Technique
+  {
+  public:
+
+    NETPlus(InstructionSet& inst)
+      : recording(false), last_addr(0), instructions(inst)
+    { std::cout << "Initing NETPlus\n" << std::endl; }
+
+    void process(unsigned long long cur_addr, char cur_opcode[16], char unsigned cur_length, 
+        unsigned long long nxt_addr, char nxt_opcode[16], char unsigned nxt_length);
+
+  private:
+
+    bool recording;
+    unsigned long long last_addr;
+
+    InstructionSet& instructions;
+
+    void expand(rain::Region*);
+
+    using RF_Technique::buildRegion;
+  };
+
+
   /**
    * Class to evaluate the Last Executing Function (LEF) region formation
    * technique
@@ -267,7 +333,7 @@ namespace rf_technique {
   {
   public:
 
-    LEI(set<unsigned long long> &inst)
+    LEI(InstructionSet& inst)
       : recording(false), last_addr(0), instructions(inst)
     { std::cout << "Initing LEI\n" << std::endl; profiler.set_hot_threshold(35); }
 
@@ -280,22 +346,23 @@ namespace rf_technique {
     unsigned long long last_addr;
     unordered_map<unsigned long long, bool> recorded;
 
-    set<unsigned long long> &instructions;
+    InstructionSet& instructions;
 
-    #define MAX_SIZE_BUFFER 500
+    #define MAX_SIZE_BUFFER 100000
     int buf_top = 0;
 
     struct branch_t {
       unsigned long long src;
       unsigned long long tgt;
+      rain::Region::Edge* edge;
     };
 
     rain::Region::Node* insertNode(rain::Region*, rain::Region::Node*, unsigned long long);
 
-    branch_t buf[MAX_SIZE_BUFFER];
+    std::vector<branch_t> buf;
     unordered_map<unsigned long long, int> buf_hash;
     unordered_map<unsigned long long, bool> code_cache;
-    void circularBufferInsert(unsigned long long, unsigned long long);
+    void circularBufferInsert(unsigned long long, unsigned long long, rain::Region::Edge*);
     bool is_followed_by_exit(int);
     void formTrace(unsigned long long, int);
 
@@ -347,8 +414,8 @@ namespace rf_technique {
   class TraceTree : public RF_Technique
   {
   public:
-    #define TREE_SIZE_LIMIT 100
-    #define BACK_BRANCH_LIMIT 3
+    #define TREE_SIZE_LIMIT 1000
+    #define BACK_BRANCH_LIMIT 8
 
     TraceTree() : recording(false), last_addr(0), is_side_exit(false)
     { std::cout << "Initing TraceTree\n" << std::endl; }

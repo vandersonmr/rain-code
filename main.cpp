@@ -146,7 +146,7 @@ int validate_arguments()
   return 0;
 }
 
-set<unsigned long long>* load_binary(string binary_path) {
+rf_technique::InstructionSet* load_binary(string binary_path) {
   ud_t ud_obj;
   ud_init(&ud_obj);
 
@@ -160,7 +160,7 @@ set<unsigned long long>* load_binary(string binary_path) {
   ud_set_syntax(&ud_obj, UD_SYN_INTEL);
 
   // Iterate over all sections until find the .text section
-  set<unsigned long long>* instructions = new set<unsigned long long>;
+  rf_technique::InstructionSet* instructions = new rf_technique::InstructionSet;
   for (int i = 0; i < sec_num; ++i) {
     section* psec = reader.sections[i];
     if (psec->get_name() == ".text" || psec->get_name() == ".init" ||
@@ -170,7 +170,7 @@ set<unsigned long long>* load_binary(string binary_path) {
       ud_set_pc(&ud_obj, psec->get_address());
 
       while (ud_disassemble(&ud_obj))
-        instructions->insert(ud_insn_off(&ud_obj));
+        instructions->addInstruction(ud_insn_off(&ud_obj), (char*) ud_insn_ptr(&ud_obj));
     }
   }
 
@@ -211,14 +211,17 @@ int main(int argc,char** argv)
   rf_technique::RF_Technique* rf = NULL;
   std::string chosen_technique = technique.get_value();
 
-  if (chosen_technique == "lei") {
+  if (chosen_technique == "lei" || chosen_technique == "netplus") {
     if (!bin_path.was_set()) {
       cerr << "You must provide the binary file path with -bin" << endl;
       return 1;
     }
 
-    set<unsigned long long>* code_insts = load_binary(bin_path.get_value());
-    rf = new rf_technique::LEI(*code_insts);
+    rf_technique::InstructionSet* code_insts = load_binary(bin_path.get_value());
+    if (chosen_technique == "netplus")
+      rf = new rf_technique::NETPlus(*code_insts);
+    else
+      rf = new rf_technique::LEI(*code_insts);
   } else if (chosen_technique == "mret2") {
     rf = new rf_technique::MRET2();
   } else if (chosen_technique == "tt") {

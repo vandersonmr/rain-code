@@ -294,6 +294,7 @@ Region::Edge* Region::createInnerRegionEdge(Region::Node* src, Region::Node* tgt
   return ed;
 }
 
+
 Region::Edge* RAIn::queryNext(unsigned long long next_ip)
 {
   if (cur_node == nte) {
@@ -331,7 +332,7 @@ Region::Edge* RAIn::addNext(unsigned long long next_ip)
   // Search for region entries.
   unordered_map<unsigned long long, Region::Node*>::iterator it = 
     region_entry_nodes.find(next_ip);
-  if(it != region_entry_nodes.end()) { 
+  if(it != region_entry_nodes.end()) {
     next_node = it->second;
   } else {
     next_node = NULL;
@@ -351,7 +352,7 @@ Region::Edge* RAIn::addNext(unsigned long long next_ip)
   else {
     // current node belongs to region.
     if (next_node == NULL) {
-      // add edge from cur_node to nte (back to emulation manager) 
+      // add edge from cur_node to nte (back to emulation manager)
       edg = cur_node->findOutEdge(nte);
       if (!edg) edg = createInterRegionEdge(cur_node, nte);
     }
@@ -371,6 +372,7 @@ void RAIn::executeEdge(Region::Edge* edge)
   cur_node = edge->tgt;
   edge->freq_counter++;
   cur_node->freq_counter++;
+  executed_freq++;
 
   if (edge->src->region != 0 && edge->tgt->region != 0) {
     Region* src_reg = edge->src->region;
@@ -378,20 +380,16 @@ void RAIn::executeEdge(Region::Edge* edge)
 
     if (src_reg != tgt_reg)
       region_transitions++;
-    else if (!tgt_reg->spanned_cycle &&
-              region_entry_nodes.count(edge->target()) != 0 &&
-              edge->target() < edge->source())
-      tgt_reg->spanned_cycle = true;
   }
-
 }
 
 Region* RAIn::createRegion()
 {
-  Region* region; 
+  Region* region;
   region = new Region();
   region->id = region_id_generator++;
   regions[region->id] = region;
+  region_start_freq[region->id] = executed_freq;
   return region;
 }
 
@@ -444,7 +442,10 @@ unsigned long long Region::entryNodesFreq() const
 {
   unsigned long long c = 0;
   for (auto entry_node : entry_nodes) {
-    c += entry_node->freq_counter;
+    for (EdgeListItem* it = entry_node->in_edges; it; it=it->next) {
+      Edge* e = it->edge;
+      c += e->freq_counter;
+    }
   }
   return c;
 }
@@ -486,12 +487,25 @@ unsigned long long Region::mainExitsFreq() const
 unsigned long long Region::externalEntriesFreq() const
 {
   unsigned long long c = 0;
-  for (EdgeListItem* it = reg_in_edges; it; it=it->next) {
-    Edge* e = it->edge;
-    if (!isInnerEdge(e))
-      c += e->freq_counter;
+  for (auto entry_node : entry_nodes) {
+    for (EdgeListItem* it = entry_node->in_edges; it; it=it->next) {
+      Edge* e = it->edge;
+      if (e->src->region != e->tgt->region)
+        c += e->freq_counter;
+    }
   }
   return c;
+}
+
+bool Region::isSpannedCycle() const {
+  for (auto entry_node : entry_nodes) {
+    for (EdgeListItem* eit = entry_node->in_edges; eit; eit=eit->next) {
+      Edge* e = eit->edge;
+      if (e->src->region == e->tgt->region)
+        return true;
+    }
+  }
+  return false;
 }
 
 void RAIn::printRegionsStats(ostream& stats_f)
@@ -510,10 +524,10 @@ void RAIn::printRegionsStats(ostream& stats_f)
     Region* r = rit->second;
 
     stats_f << r->id << ","
-      << r->nodes.size() << "," 
-      << r->allNodesFreq() << "," 
-      << r->entryNodesFreq() << "," 
-      << r->exitNodesFreq() << "," 
+      << r->nodes.size() << ","
+      << r->allNodesFreq() << ","
+      << r->entryNodesFreq() << ","
+      << r->exitNodesFreq() << ","
       << r->externalEntriesFreq() << ","
       << endl;
   }
@@ -530,8 +544,10 @@ struct cov_less_than_key
 
 void RAIn::printOverallStats(ostream& stats_f)
 {
+  unsigned long long total_reg = 0;
   unsigned long long total_stat_reg_size = 0;
   unsigned long long total_reg_entries = 0;
+  unsigned long long total_reg_external_entries = 0;
   unsigned long long total_reg_main_exits = 0;
   unsigned long long total_reg_freq = 0;
   unsigned long long nte_freq = nte->freq_counter;
@@ -553,11 +569,13 @@ void RAIn::printOverallStats(ostream& stats_f)
     if (!r->alive) continue;
 
     assert(r != nullptr && "Region is null in printOverallStats");
+    total_reg += 1;
     total_stat_reg_size += r->nodes.size();
-    total_reg_entries += r->externalEntriesFreq();
+    total_reg_entries += r->entryNodesFreq();
+    total_reg_external_entries += r->externalEntriesFreq();
     total_reg_main_exits += r->mainExitsFreq();
 
-    if (r->spanned_cycle) total_spanned_cycles++;
+    if (r->isSpannedCycle()) total_spanned_cycles++;
 
     unsigned long long allNodesFreq = r->allNodesFreq();
     total_reg_freq += allNodesFreq;
@@ -606,7 +624,7 @@ void RAIn::printOverallStats(ostream& stats_f)
   stats_f << "reg_stat_instr_count" << "," << total_stat_reg_size  << ",Static # of instructions translated into regions" << endl;
   stats_f << "reg_uniq_instr_count" << "," << total_unique_instrs << ",# of unique instructions included on regions" << endl;
   stats_f << "reg_dyn_entries" <<  "," << total_reg_entries << ",Regions entry frequency count" << endl;
-  stats_f << "number_of_regions" <<  "," << regions.size() << ",Total number of regions" << endl;
+  stats_f << "number_of_regions" <<  "," << total_reg << ",Total number of regions" << endl;
   stats_f << "interp_dyn_inst_count" << "," << nte_freq << ",Freq. of instruction emulated by interpretation" << endl;
 
   assert(total_reg_entries != 0 && "total_reg_entries is 0 and it's dividing");
@@ -614,9 +632,9 @@ void RAIn::printOverallStats(ostream& stats_f)
     (double) total_reg_freq / (double) total_reg_entries
     << "," << "Average dynamic region size." << endl;
 
-  assert(regions.size() != 0 && "region.size() is 0 and it's dividing");
-  stats_f << "avg_stat_reg_size" << "," << 
-    (double) total_stat_reg_size / (double) regions.size() 
+  assert(total_reg != 0 && "region.size() is 0 and it's dividing");
+  stats_f << "avg_stat_reg_size" << "," <<
+    (double) total_stat_reg_size / (double) total_reg
     << "," << "Average static region size." << endl;
 
   stats_f << "dyn_reg_coverage" << "," << 
@@ -636,8 +654,10 @@ void RAIn::printOverallStats(ostream& stats_f)
     << "Number of regions transitions" << endl;
   stats_f << "num_counters" << "," << number_of_counters << ","
     << "Number of used counters" << endl;
-  stats_f << "spanned_cycles" << "," << total_spanned_cycles / (double) regions.size() << ","
+  stats_f << "spanned_cycles" << "," << total_spanned_cycles / (double) total_reg << ","
     << "Spanned Cycle Ratio" << endl;
+  stats_f << "spanned_exec_ration" <<  "," << 1-(total_reg_external_entries / (double) total_reg_entries) <<
+    ",Spanned execution ratio" << endl;
 
   stats_f << "70_cover_set_regs" << "," << _70_cover_set_regs
     << "," << "minumun number of regions to cover 70% of dynamic execution" << endl;
@@ -661,6 +681,7 @@ void RAIn::printRegionDOT(Region* region, ostream& reg)
   unsigned id_gen = 1;
   // For each node.
   reg << "/* nodes */" << endl;
+  reg << "/* Start Freq.: " << region_start_freq[region->id] << " */" << endl;
   reg << "/* entry: ";
   for (Region::Node* n : region->entry_nodes) {
     reg << "0x" << std::hex << n->getAddress() << std::dec << " ";
