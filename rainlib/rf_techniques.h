@@ -31,6 +31,7 @@
 #include <set>
 #include <deque>
 #include <memory>
+#include <algorithm>
 
 #include <cassert>
 #include <iostream> // cerr
@@ -131,6 +132,8 @@ namespace rf_technique {
     vector<unsigned long long> addresses;
 
     void reset() { addresses.clear(); }
+
+    void reverse() { std::reverse(addresses.begin(), addresses.end()); }
 
     void append(unsigned long long addr) { addresses.push_back(addr); }
 
@@ -280,6 +283,7 @@ namespace rf_technique {
 
     InstructionSet& instructions;
 
+    void addNewPath(rain::Region*, recording_buffer_t&);
     void expand(rain::Region*);
 
     using RF_Technique::buildRegion;

@@ -218,6 +218,23 @@ int main(int argc,char** argv)
     }
 
     rf_technique::InstructionSet* code_insts = load_binary(bin_path.get_value());
+
+    // Create the input pipe.
+    trace_io::raw_input_pipe_t in2(trace_path.get_value(),
+        start_i.get_value(),
+        end_i.get_value());
+    // Current and next instructions.
+    trace_io::trace_item_t current;
+    trace_io::trace_item_t next;
+
+    // While there are instructions
+    while (in2.get_next_instruction(next)) {
+      // Add cur_addr to instructions set if it's not already there
+      if (!code_insts->hasInstruction(current.addr))
+        code_insts->addInstruction(current.addr, current.opcode);
+      current = next;
+    }
+
     if (chosen_technique == "netplus")
       rf = new rf_technique::NETPlus(*code_insts);
     else

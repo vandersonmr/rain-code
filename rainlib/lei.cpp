@@ -122,10 +122,6 @@ void LEI::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
 
   RF_DBG_MSG("0x" << setbase(16) << cur_addr << endl);
 
-  // Add cur_addr to instructions set if it's not already there
-  if (!instructions.hasInstruction(cur_addr))
-    instructions.addInstruction(cur_addr, cur_opcode);
-
   // Profile instructions to detect hot code
   bool profile_target_instr = false;
   if ((edg->tgt == rain.nte) && abs(cur_addr - last_addr) > last_len) {

@@ -22,7 +22,7 @@
 #include "rf_techniques.h"
 #include <iostream>
 #include <iomanip>
-#include <stack>
+#include <queue>
 
 using namespace rf_technique;
 using namespace rain;
@@ -61,6 +61,9 @@ getPossibleNextAddrs(unsigned long long cur_addr, const char cur_opcode[16]) {
       || (opcode == 0x0f && opcode1 == 0x89)
       || (opcode == 0x0f && opcode1 == 0x85)
       || (opcode == 0x0f && opcode1 == 0x8e)
+      || (opcode == 0x0f && opcode1 == 0x82)
+      || (opcode == 0x0f && opcode1 == 0x8d)
+      || (opcode == 0x0f && opcode1 == 0x8f)
       ) { // near
 
     union int32 offset;
@@ -71,10 +74,9 @@ getPossibleNextAddrs(unsigned long long cur_addr, const char cur_opcode[16]) {
 
     nextAddrs.push_back(cur_addr+6+offset.i);
   } else if // short branches
-       ( opcode == 0xeb
-      || opcode == 0x74 || opcode == 0x78
-      || opcode == 0x7c || opcode == 0x79
-      || opcode == 0x75 || opcode == 0x7e) {
+       (    opcode == 0xeb || opcode == 0x74 || opcode == 0x78 
+         || opcode == 0x72 || opcode == 0x7d || opcode == 0x7f 
+         || opcode == 0x7c || opcode == 0x79 || opcode == 0x75 || opcode == 0x7e) {
 
     nextAddrs.push_back(cur_addr+2+ (signed char) cur_opcode[1]);
   }
@@ -101,23 +103,57 @@ bool isFlowControlInst(const char cur_opcode[16]) {
   || (opcode == 0x0f && opcode1 == 0x84) // je near *
   || (opcode == 0x78) // js short
   || (opcode == 0x0f && opcode1 == 0x88) // js near *
-  || (opcode == 0x78) // js short
-  || (opcode == 0x0f && opcode1 == 0x88) // js near *
-  || (opcode == 0x7c) // jc short
-  || (opcode == 0x0f && opcode1 == 0x8c) // jc near *
-  || (opcode == 0x79) // jns short
-  || (opcode == 0x0f && opcode1 == 0x89) // jns near *
+  || (opcode == 0x72) // jc short
+  || (opcode == 0x0f && opcode1 == 0x82) // jc near *
+  || (opcode == 0x7d) // jge short
+  || (opcode == 0x0f && opcode1 == 0x8d) // jge near *
+  || (opcode == 0x7f) // jg short
+  || (opcode == 0x0f && opcode1 == 0x8f) // jg near *
   || (opcode == 0x75) // jne short
   || (opcode == 0x0f && opcode1 == 0x85) // jne near *
-  || (opcode == 0x7e) // jns short
-  || (opcode == 0x0f && opcode1 == 0x8e); // jns near *
+  || (opcode == 0x7c) // jl short
+  || (opcode == 0x0f && opcode1 == 0x8c) // jl near *
+  || (opcode == 0x7e) // jle short
+  || (opcode == 0x0f && opcode1 == 0x8e) // jle near *
+  || (opcode == 0x79) // jns short
+  || (opcode == 0x0f && opcode1 == 0x89); // jns near *
 }
 
-#define DEPTH_LIMIT 30
+void NETPlus::addNewPath(rain::Region* r, recording_buffer_t& newpath) {
+  newpath.reverse();
+
+  if (newpath.addresses.size() == 0)
+    return;
+
+  rain::Region::Node* last_node = NULL;
+
+  for (auto addr : newpath.addresses) {
+    if (last_node == NULL) {
+      last_node = r->getNode(addr);
+      continue;
+    }
+
+    rain::Region::Node* node = r->getNode(addr);
+    if (node == NULL) {
+      node = new rain::Region::Node(addr);
+      rain.insertNodeInRegion(node, r);
+      recording_buffer.append(addr);
+    }
+
+    // Successive nodes
+    if (last_node->findOutEdge(addr) == NULL)
+      r->createInnerRegionEdge(last_node, node);
+
+    last_node = node;
+  }
+}
+
+#define DEPTH_LIMIT 10
 void NETPlus::expand(rain::Region* r) {
-  std::stack<unsigned long long> s;
+  std::queue<unsigned long long> s;
   unordered_map<unsigned long long, unsigned> distance;
-  unordered_map<unsigned long long, unsigned long long> parent;
+  unordered_map<unsigned long long, unsigned long long> next, parent;
+  set<unsigned long long> loop_entries;
 
   // Init BFS frontier
   int addrs_space = -1;
@@ -127,39 +163,64 @@ void NETPlus::expand(rain::Region* r) {
     if (addrs_space == -1)
       addrs_space = is_system_instr(addrs);
 
-    if (isFlowControlInst(instructions.getOpcode(addrs))) {
-      if (r->entry_nodes.count(r->getNode(addrs))) {
+    if (r->entry_nodes.count(r->getNode(addrs)) != 0) {
+      loop_entries.insert(addrs);
+    } else {
+      if (isFlowControlInst(instructions.getOpcode(addrs))) {
         s.push(addrs);
         distance[addrs] = 0;
+        parent[addrs] = 0;
       }
     }
   }
 
-  int i = 0;
   while (!s.empty()) {
-    unsigned long long current = s.top();
+    unsigned long long current = s.front();
     s.pop();
 
     if (distance[current] < DEPTH_LIMIT) {
-      i++;
 
       for (auto target : getPossibleNextAddrs(current, instructions.getOpcode(current))) {
+        if (parent.count(target) != 0) continue;
+        parent[target] = current;
         // Iterate over all instructions between the target and the next branch
         auto it = instructions.find(target);
         while (it != instructions.getEnd()) {
 
-          if (r->entry_nodes.count(r->getNode(it->first)) != 0) {
-            std::cout << r->id << " Loop " << distance[current]+1 << std::endl;
+          if (loop_entries.count(it->first) != 0 && distance[current] > 0) {
+            loop_entries.insert(current);
+
+            recording_buffer_t newpath;
+            unsigned long long begin = it->first;
+            unsigned long long prev = target;
+            while (true) {
+              auto it = instructions.find(begin);
+              while (true) {
+                newpath.append(it->first);
+                if (it->first == prev) break;
+                --it;
+              }
+              begin = parent[prev];
+              prev  = next[begin];
+              if (prev == 0) {
+                newpath.append(begin);
+                break;
+              }
+            }
+            addNewPath(r, newpath);
+
             break;
           }
 
-          if (addrs_space != is_system_instr(it->first))
+          if (addrs_space != is_system_instr(it->first) ||
+              rain.region_entry_nodes.count(it->first) != 0) {
             break;
+          }
 
-          if (isFlowControlInst(it->second)) {
+          if (isFlowControlInst(it->second) && distance.count(it->first) == 0) {
             s.push(it->first);
             distance[it->first] = distance[current] + 1;
-            parent[it->first] = current;
+            next[it->first] = target;
             break;
           }
 
@@ -168,12 +229,8 @@ void NETPlus::expand(rain::Region* r) {
       }
     }
   }
-  if (i > 0)
-    std::cout << i << std::endl;
 }
 
-unsigned total = 0;
-unsigned totalif = 0;
 char last_opcode[16];
 void NETPlus::process(unsigned long long cur_addr, char cur_opcode[16], char unsigned cur_length,
     unsigned long long nxt_addr, char nxt_opcode[16], char unsigned nxt_length) {
@@ -183,10 +240,6 @@ void NETPlus::process(unsigned long long cur_addr, char cur_opcode[16], char uns
     edg = rain.addNext(cur_addr);
   }
   rain.executeEdge(edg);
-
-  // Add cur_addr to instructions set if it's not already there
-  if (!instructions.hasInstruction(cur_addr))
-    instructions.addInstruction(cur_addr, cur_opcode);
 
   RF_DBG_MSG("0x" << setbase(16) << cur_addr << endl);
 
