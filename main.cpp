@@ -38,6 +38,7 @@ clarg::argInt    start_i("-s", "start: first file index ", 0);
 clarg::argInt    end_i("-e", "end: last file index", 0);
 clarg::argString trace_path("-b", "input file trace_path", "trace");
 clarg::argString bin_path("-bin", "input binary file path", "");
+clarg::argInt depth_limit("-d", "depth limit for NETPlus", 10);
 clarg::argString technique("-t", "RF Technique", "net");
 clarg::argBool   help("-h",  "display the help message");
 clarg::argString reg_stats_fname("-reg_stats", 
@@ -58,7 +59,7 @@ clarg::argBool wt("-wt", "windows trace. System/user address threshold = 0xF9CCD
 
 void usage(char* prg_name) 
 {
-  cout << "Version: 0.9.2" << endl << endl;
+  cout << "Version: 0.9.6" << endl << endl;
 
   cout << "Usage: " << prg_name << " -b trace_path -s index -e index [-h] [-o stats.csv] {-lt|-wt}" 
     << endl << endl;
@@ -235,10 +236,13 @@ int main(int argc,char** argv)
       current = next;
     }
 
-    if (chosen_technique == "netplus")
-      rf = new rf_technique::NETPlus(*code_insts);
-    else
+    if (chosen_technique == "netplus") {
+      unsigned limit = 10;
+      if (depth_limit.was_set()) limit = depth_limit.get_value();
+      rf = new rf_technique::NETPlus(*code_insts, limit);
+    } else {
       rf = new rf_technique::LEI(*code_insts);
+    } 
   } else if (chosen_technique == "mret2") {
     rf = new rf_technique::MRET2();
   } else if (chosen_technique == "tt") {
@@ -254,7 +258,7 @@ int main(int argc,char** argv)
     // Process the trace
     if (rf)
       rf->process(current.addr, current.opcode, current.length,
-        next.addr, next.opcode, next.length);
+          next.addr, next.opcode, next.length);
     current = next;
   }
   if (rf) rf->finish();

@@ -269,14 +269,16 @@ namespace rf_technique {
   {
   public:
 
-    NETPlus(InstructionSet& inst)
-      : recording(false), last_addr(0), instructions(inst)
-    { std::cout << "Initing NETPlus\n" << std::endl; }
+    NETPlus(InstructionSet& inst, unsigned limit)
+      : recording(false), last_addr(0), instructions(inst), DEPTH_LIMIT(limit)
+    { std::cout << "Initing NETPlus ("<< DEPTH_LIMIT << ")\n" << std::endl; }
 
     void process(unsigned long long cur_addr, char cur_opcode[16], char unsigned cur_length, 
         unsigned long long nxt_addr, char nxt_opcode[16], char unsigned nxt_length);
 
   private:
+
+    unsigned DEPTH_LIMIT = 10;
 
     bool recording;
     unsigned long long last_addr;

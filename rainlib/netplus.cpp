@@ -148,7 +148,6 @@ void NETPlus::addNewPath(rain::Region* r, recording_buffer_t& newpath) {
   }
 }
 
-#define DEPTH_LIMIT 10
 void NETPlus::expand(rain::Region* r) {
   std::queue<unsigned long long> s;
   unordered_map<unsigned long long, unsigned> distance;
