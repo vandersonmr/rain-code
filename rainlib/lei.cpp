@@ -68,8 +68,9 @@ void LEI::formTrace(unsigned long long start, int old) {
     while (it != instructions.getEnd()) {
 
       if (is_region_addr_space(it->first)) {
-        if (rain.region_entry_nodes.count(it->first) != 0)
-          return;
+        if (rain.region_entry_nodes.count(it->first) != 0) {
+          goto exit;
+        }
 
         if (!r)
           r = rain.createRegion();
@@ -85,16 +86,19 @@ void LEI::formTrace(unsigned long long start, int old) {
     }
 
     // Stop if branch forms a cycle
-    if (r)
+    if (r) {
       if (r->getNode(branch_tgt) != nullptr) {
-          //rain.setEntry(r->getNode(branch_tgt));
-          break;
+        rain.setEntry(r->getNode(branch_tgt));
+        break;
       }
+    }
+
 
     prev = branch_tgt;
     branch += 1;
   }
 
+exit:
   if (last_node)
     rain.setExit(last_node);
 }
@@ -108,8 +112,6 @@ bool LEI::is_followed_by_exit(int old) {
   return false;
 }
 
-unsigned t = 0;
-unsigned t2 = 0;
 char unsigned last_len = 0;
 void LEI::process(unsigned long long cur_addr, char cur_opcode[16], char unsigned cur_length, 
     unsigned long long nxt_addr, char nxt_opcode[16], char unsigned nxt_length)

@@ -60,12 +60,12 @@ void LEF::mergeRegions(rain::Region* src_reg, unsigned long long src_addr,
     rain::Region* tgt_reg, unsigned long long tgt_addr) {
 
     src_reg->exit_nodes.erase(src_reg->getNode(src_addr));
+//    tgt_reg->entry_nodes.erase(tgt_reg->getNode(tgt_addr));
 
     tgt_reg->moveAndDestroy(src_reg, rain.region_entry_nodes);
     src_reg->alive = false;
 
     rain.regions.erase(src_reg->id);
-    tgt_reg->entry_nodes.erase(tgt_reg->getNode(tgt_addr));
 }
 
 bool LEF::hasComeFromCall(rain::Region* reg) {
@@ -79,6 +79,7 @@ void LEF::expandRegion(rain::Region* reg) {
   bool newNeighbors = true;
 
   while (newNeighbors) {
+    nextNeighbor:
     newNeighbors = false;
     // Iterate over every region
     for (auto pair : reg_out_addrs) {
@@ -96,28 +97,35 @@ void LEF::expandRegion(rain::Region* reg) {
 
           mergeRegions(src_reg, src_addr, tgt_reg, tgt_addr);
 
-          if (hasComeFromCall(src_reg)) {
-            goto exit;
+          // Check if all inner loops are correctly seted
+          for (auto node : reg->nodes) {
+            for (auto edge = node->in_edges; edge != NULL; edge = edge->next) {
+              Region::Edge* ed = edge->edge;
+
+              if (ed->src->region == ed->tgt->region && ed->src->region != NULL) {
+                Region* r = ed->src->region;
+                r->region_inner_edges.insert(ed);
+
+                if (r->entry_nodes.count(ed->tgt) != 0) {
+                  r->entry_nodes.erase(ed->tgt);
+                  rain.region_entry_nodes.erase(ed->tgt->getAddress());
+                }
+              }
+            }
           }
 
+
           newNeighbors = true;
+
+          if (hasComeFromCall(src_reg)) {
+            goto nextNeighbor;
+          }
         }
       }
     }
   }
 
   exit:
-  // Check if all inner loops are correctly seted
-  for (auto node : reg->nodes) {
-    for (auto edge = node->in_edges; edge != NULL; edge = edge->next) {
-      Region::Edge* ed = edge->edge;
-      if (ed->src->region == ed->tgt->region && ed->src->region != NULL) {
-        Region* r = ed->src->region;
-        r->region_inner_edges.insert(ed);
-      }
-    }
-  }
-
   rain.countExpansion();
 }
 
