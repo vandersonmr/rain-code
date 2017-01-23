@@ -187,14 +187,14 @@ void Region::moveAndDestroy(Region* reg, unordered_map<unsigned long long, Node*
   unordered_map<Node*, Node*> translation_table;
   for (auto node : reg->nodes) {
       node->region = this;
-
       // If aready there a node if this address
       if (getNode(node->getAddress()) != nullptr)
         translation_table[node] = getNode(node->getAddress());
-      else 
+      else
         nodes.insert(node);
   }
 
+  // Translate entries
   for (auto node : reg->entry_nodes) {
     if (translation_table.count(node) == 0) {
       entry_nodes.insert(node);
@@ -204,6 +204,7 @@ void Region::moveAndDestroy(Region* reg, unordered_map<unsigned long long, Node*
     }
   }
 
+  // Translate exits
   for (auto node : reg->exit_nodes) {
     if (translation_table.count(node) == 0)
       exit_nodes.insert(node);
@@ -233,9 +234,9 @@ void Region::moveAndDestroy(Region* reg, unordered_map<unsigned long long, Node*
       if (translation_table.count(ed->tgt) != 0) ed->tgt = translation_table[ed->tgt];
 
       Region::Edge* tgt_ed = tgt->findInEdge(ed->src);
-      if (tgt_ed) 
+      if (tgt_ed)
         tgt_ed->freq_counter += ed->freq_counter;
-      else 
+      else
         tgt->insertInEdge(ed, ed->src);
     }
     delete src;
@@ -247,6 +248,18 @@ void Region::moveAndDestroy(Region* reg, unordered_map<unsigned long long, Node*
   reg->entry_nodes.clear();
   reg->exit_nodes.clear();
   //delete reg;
+}
+
+unsigned Region::getNumberOfSideEntries() {
+  unsigned amount = 0;
+  for (auto node : entry_nodes) {
+      auto it = node->in_edges;
+      while (it != NULL) {
+        if (node->region->isInnerEdge(it->edge)) amount++;
+        it = it->next;
+      }
+  }
+  return amount;
 }
 
 Region::Node* Region::getNode(unsigned long long addr) {
@@ -550,6 +563,7 @@ void RAIn::printOverallStats(ostream& stats_f)
   unsigned long long total_reg_external_entries = 0;
   unsigned long long total_reg_main_exits = 0;
   unsigned long long total_reg_freq = 0;
+  unsigned long long total_side_entries = 0;
   unsigned long long nte_freq = nte->freq_counter;
   unsigned long long total_reg_oficial_exit = 0;
   unsigned long long total_spanned_cycles = 0;
@@ -567,6 +581,7 @@ void RAIn::printOverallStats(ostream& stats_f)
     Region* r = rit.second;
 
     if (!r->alive) continue;
+    total_side_entries += r->getNumberOfSideEntries();
 
     assert(r != nullptr && "Region is null in printOverallStats");
     total_reg += 1;
@@ -650,6 +665,7 @@ void RAIn::printOverallStats(ostream& stats_f)
     << "," << "Completion Ratio" << endl;
 
   stats_f << "num_expasions" << "," << expansions << "," << "Number of Expansions" << endl;
+  stats_f << "side_entries" << "," << total_side_entries/ (double) total_reg << "," << "Side Entries" << endl;
   stats_f << "region_transitions" << "," << region_transitions << ","
     << "Number of regions transitions" << endl;
   stats_f << "num_counters" << "," << number_of_counters << ","

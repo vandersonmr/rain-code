@@ -146,6 +146,8 @@ namespace rain {
 
     Node* getNode(unsigned long long);
 
+    unsigned getNumberOfSideEntries();
+
     /** Region identifier -- debug purposes. */
     unsigned id;
 

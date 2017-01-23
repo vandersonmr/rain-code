@@ -315,7 +315,6 @@ namespace rf_technique {
     void mergeRegions(rain::Region*, unsigned long long, 
                      rain::Region*, unsigned long long);
     bool hasComeFromCall(rain::Region*);
-    void insertEntryAddrs(rain::Region*, vector<unsigned long long>&);
     void expandRegion(rain::Region*);
 
     bool recording, retRegion, callRegion;
