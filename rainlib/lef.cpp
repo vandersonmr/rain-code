@@ -60,7 +60,6 @@ void LEF::mergeRegions(rain::Region* src_reg, unsigned long long src_addr,
     rain::Region* tgt_reg, unsigned long long tgt_addr) {
 
     src_reg->exit_nodes.erase(src_reg->getNode(src_addr));
-//    tgt_reg->entry_nodes.erase(tgt_reg->getNode(tgt_addr));
 
     tgt_reg->moveAndDestroy(src_reg, rain.region_entry_nodes);
     src_reg->alive = false;
@@ -108,12 +107,11 @@ void LEF::expandRegion(rain::Region* reg) {
 
                 if (r->entry_nodes.count(ed->tgt) != 0) {
                   r->entry_nodes.erase(ed->tgt);
-                  rain.region_entry_nodes.erase(ed->tgt->getAddress());
+                  //rain.region_entry_nodes.erase(ed->tgt->getAddress());
                 }
               }
             }
           }
-
 
           newNeighbors = true;
 

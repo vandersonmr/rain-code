@@ -92,6 +92,8 @@ Region::Edge* Region::Node::findInEdge(unsigned long long prev_ip)
 Region::Edge* Region::Node::findOutEdge(unsigned long long next_ip)
 {
   if (!out_edges) return NULL;
+  if (!(out_edges->edge)) return NULL;
+  if (!(out_edges->edge->tgt)) return NULL;
   if (out_edges->edge->tgt->getAddress() == next_ip) return out_edges->edge;
 
   EdgeListItem* prev = NULL;
@@ -153,7 +155,7 @@ void Region::Node::insertInEdge(Region::Edge* ed, Region::Node* source)
   assert(ed->tgt == this);
   assert(ed->src == source);
   // Check for edge duplication
-  assert(findInEdge(source) == NULL);
+  //assert(findInEdge(source) == NULL);
 #endif 
 
   Region::EdgeListItem* it = new Region::EdgeListItem();
@@ -173,7 +175,7 @@ Region::~Region()
   region_inner_edges.clear();
 
   // Remove all nodes.
-  for(auto node : nodes) 
+  for(auto node : nodes)
     delete node;
 
   nodes.clear();
