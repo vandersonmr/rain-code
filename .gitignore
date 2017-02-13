@@ -1,1 +1,4 @@
-test/zinsly-binaries/elfs/
+test/*
+*.swp
+results/*
+build/*

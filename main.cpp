@@ -1,6 +1,7 @@
 /***************************************************************************
  *   Copyright (C) 2013 by:                                                *
  *   Edson Borin (edson@ic.unicamp.br)                                     *
+ *   Vanderson M. Rosario (vandersonmr2@gmail.com)
  *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
  *   it under the terms of the GNU General Public License as published by  *
@@ -249,6 +250,8 @@ int main(int argc,char** argv)
     rf = new rf_technique::TraceTree();
   } else if (chosen_technique == "lef") {
     rf = new rf_technique::LEF();
+  } else if (chosen_technique == "callspage") {
+    rf = new rf_technique::CallsInPage();
   } else {
     rf = new rf_technique::NET();
   }

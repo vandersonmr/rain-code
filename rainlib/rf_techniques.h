@@ -156,7 +156,7 @@ namespace rf_technique {
           unsigned long long nxt_addr, char nxt_opcode[16], 
           char unsigned nxt_length) = 0;
 
-    void finish() {
+    virtual void finish() {
       rain.setNumOfCounters(profiler.getNumOfCounters());
     };
 
@@ -256,6 +256,26 @@ namespace rf_technique {
   private:
 
     bool recording;
+    unsigned long long last_addr;
+
+    using RF_Technique::buildRegion;
+  };
+
+  class CallsInPage : public RF_Technique
+  {
+  public:
+
+    CallsInPage() : last_addr (0)
+    { std::cout << "Initing CallsInPage\n" << std::endl; }
+
+    void process(unsigned long long cur_addr, char cur_opcode[16], char unsigned cur_length, 
+        unsigned long long nxt_addr, char nxt_opcode[16], char unsigned nxt_length);
+
+    void finish() override;
+
+  private:
+
+    char last_opcode[16];
     unsigned long long last_addr;
 
     using RF_Technique::buildRegion;
