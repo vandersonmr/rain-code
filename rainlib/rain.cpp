@@ -367,9 +367,16 @@ Region::Edge* RAIn::addNext(unsigned long long next_ip)
   else {
     // current node belongs to region.
     if (next_node == NULL) {
-      // add edge from cur_node to nte (back to emulation manager)
-      edg = cur_node->findOutEdge(nte);
-      if (!edg) edg = createInterRegionEdge(cur_node, nte);
+      Region* cur_reg = cur_node->region;
+      next_node = cur_reg->getNode(next_ip);
+
+      if (next_node == NULL) {
+        // add edge from cur_node to nte (back to emulation manager)
+        edg = cur_node->findOutEdge(nte);
+        if (!edg) edg = createInterRegionEdge(cur_node, nte);
+      } else {
+        edg = cur_reg->createInnerRegionEdge(cur_node, next_node);
+      }
     }
     else {
       // add edge from cur_node to region_entry (link regions)

@@ -96,7 +96,7 @@ void CallsInPage::process(unsigned long long cur_addr, char cur_opcode[16], char
 
   if ((opcode != 0xe8 && opcode != 0xff) && cur_addr < last_addr && call_stack.size() > 0) {
     if (perf.count(cur_addr) == 0) perf[cur_addr] = 0;
-    else {  
+    else {
       perf[cur_addr] += 1;
       if (perf[cur_addr] > 50)
         call_stack.top().is_hot = true;

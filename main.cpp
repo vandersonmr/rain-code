@@ -213,7 +213,7 @@ int main(int argc,char** argv)
   rf_technique::RF_Technique* rf = NULL;
   std::string chosen_technique = technique.get_value();
 
-  if (chosen_technique == "lei" || chosen_technique == "netplus") {
+  if (chosen_technique == "lei" || chosen_technique == "netplus" || chosen_technique == "lefplus") {
     if (!bin_path.was_set()) {
       cerr << "You must provide the binary file path with -bin" << endl;
       return 1;
@@ -221,29 +221,15 @@ int main(int argc,char** argv)
 
     rf_technique::InstructionSet* code_insts = load_binary(bin_path.get_value());
 
-    // Create the input pipe.
-    trace_io::raw_input_pipe_t in2(trace_path.get_value(),
-        start_i.get_value(),
-        end_i.get_value());
-    // Current and next instructions.
-    trace_io::trace_item_t current;
-    trace_io::trace_item_t next;
-
-    // While there are instructions
-    while (in2.get_next_instruction(next)) {
-      // Add cur_addr to instructions set if it's not already there
-      if (!code_insts->hasInstruction(current.addr))
-        code_insts->addInstruction(current.addr, current.opcode);
-      current = next;
-    }
-
     if (chosen_technique == "netplus") {
       unsigned limit = 10;
       if (depth_limit.was_set()) limit = depth_limit.get_value();
       rf = new rf_technique::NETPlus(*code_insts, limit);
-    } else {
+    } else if (chosen_technique == "LEI") {
       rf = new rf_technique::LEI(*code_insts);
-    } 
+    } else {
+      rf = new rf_technique::LEFPlus(*code_insts);
+    }
   } else if (chosen_technique == "mret2") {
     rf = new rf_technique::MRET2();
   } else if (chosen_technique == "tt") {

@@ -32,6 +32,7 @@
 #include <deque>
 #include <memory>
 #include <algorithm>
+#include <stack>
 
 #include <cassert>
 #include <iostream> // cerr
@@ -311,7 +312,6 @@ namespace rf_technique {
     using RF_Technique::buildRegion;
   };
 
-
   /**
    * Class to evaluate the Last Executing Function (LEF) region formation
    * technique
@@ -346,6 +346,46 @@ namespace rf_technique {
 
     unordered_map<rain::Region*, set_addr_uptr> reg_out_addrs;
     unordered_map<rain::Region*, bool> came_from_call;
+
+    using RF_Technique::buildRegion;
+  };
+
+
+  /**
+   * Class to evaluate the Last Executing Function (LEF) region formation
+   * technique
+   */
+  class LEFPlus : public RF_Technique
+  {
+  public:
+
+    LEFPlus(InstructionSet& ins) : recording(false), last_addr (0), instructions(ins)
+    { std::cout << "Initing LEFPlus\n" << std::endl; }
+
+    void process(unsigned long long cur_addr, char cur_opcode[16], char unsigned cur_length, 
+        unsigned long long nxt_addr, char nxt_opcode[16], char unsigned nxt_length);
+
+  private:
+    typedef pair<unsigned long long, unsigned long long> pair_addr;
+    typedef shared_ptr<set<pair_addr>> set_addr_uptr;
+
+    bool isCallInst(char[16]);
+
+    bool recording;
+    unsigned long long last_addr;
+    InstructionSet& instructions;
+    unordered_map<unsigned long long, bool> callsTaken;
+
+    char last_opcode[16];
+
+    typedef struct call_status {
+      unsigned long long caller, calle;
+      char unsigned call_inst_length;
+      bool is_hot;
+    } call_status;
+
+    std::stack<call_status> call_stack;
+    char unsigned last_length;
 
     using RF_Technique::buildRegion;
   };
