@@ -107,7 +107,7 @@ void LEF::expandRegion(rain::Region* reg) {
 
                 if (r->entry_nodes.count(ed->tgt) != 0) {
                   r->entry_nodes.erase(ed->tgt);
-                  //rain.region_entry_nodes.erase(ed->tgt->getAddress());
+                  rain.region_entry_nodes.erase(ed->tgt->getAddress());
                 }
               }
             }
