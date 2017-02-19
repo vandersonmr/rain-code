@@ -382,10 +382,14 @@ namespace rf_technique {
       unsigned long long caller, calle;
       char unsigned call_inst_length;
       bool is_hot;
+      std::vector<rain::Region*> regions;
     } call_status;
 
     std::stack<call_status> call_stack;
     char unsigned last_length;
+
+    void addNewPath(rain::Region*, recording_buffer_t&); 
+    void expand(std::vector<rain::Region*>);
 
     using RF_Technique::buildRegion;
   };
