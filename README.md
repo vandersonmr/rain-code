@@ -22,27 +22,24 @@ The user must provide the trace_path (-b), the start index (-s) and the end
 index (-e).
 
 ### ARGUMENTS:
-  -b : input file trace_path
-  -bin : input binary file path
-  -d : depth limit for NETPlus
-  -e : end: last file index
-  -h : display the help message
-  -lt : linux trace. System/user address threshold = 0xB2D05E00
-  -mix : Allow user and system code in the same NET regions.
-  -overall_stats : file name to dump overall statistics in CSV format
-  -reg_stats : file name to dump regions statistics in CSV format
-  -s : start: first file index 
-  -t : RF Technique
-  -wt : windows trace. System/user a *   This program is free software; you can redistribute it and/or modify  *
- *   it under the terms of the GNU General Public License as published by  *
- *   the Free Software Foundation; either version 2 of the License, or     *
- *   (at your option) any later version. ddress threshold = 0xF9CCD8A1C5080000
+ * -b : input file trace_path
+ * -bin : input binary file path
+ * -d : depth limit for NETPlus
+ * -e : end: last file index
+ * -h : display the help message
+ * -lt : linux trace. System/user address threshold = 0xB2D05E00
+ * -mix : Allow user and system code in the same NET regions.
+ * -overall_stats : file name to dump overall statistics in CSV format
+ * -reg_stats : file name to dump regions statistics in CSV format
+ * -s : start: first file index 
+ * -t : RF Technique
+ * -wt : windows trace. System/user address threshold = 0xF9CCD8A1C5080000
 
 ## Contributors
 
- - @eborin Edson Borin (edson@ic.unicamp.br)
- - @rzinsly Raphael Zinsly (raphael.zinsly@gmail.com)
- - @vandersonmr Vanderson M. Rosario (vandersonmr2@gmail.com)
+ * @eborin Edson Borin (edson@ic.unicamp.br)
+ * @rzinsly Raphael Zinsly (raphael.zinsly@gmail.com)
+ * @vandersonmr Vanderson M. Rosario (vandersonmr2@gmail.com)
 
 # License
 
