@@ -1,3 +1,24 @@
+/***************************************************************************
+ *   Copyright (C) 2016 by:                                                *
+ *   Edson Borin (edson@ic.unicamp.br)                                     *
+ *   Vanderson M. Rosario (vandersonmr2@gmail.com)                         *
+ *                                                                         *
+ *   This program is free software; you can redistribute it and/or modify  *
+ *   it under the terms of the GNU General Public License as published by  *
+ *   the Free Software Foundation; either version 2 of the License, or     *
+ *   (at your option) any later version.                                   *
+ *                                                                         *
+ *   This program is distributed in the hope that it will be useful,       *
+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of        *
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         *
+ *   GNU General Public License for more details.                          *
+ *                                                                         *
+ *   You should have received a copy of the GNU General Public License     *
+ *   along with this program; if not, write to the                         *
+ *   Free Software Foundation, Inc.,                                       *
+ *   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             *
+ ***************************************************************************/
+
 #include <unistd.h>
 #include <inttypes.h>
 #include <unicorn/unicorn.h>
@@ -12,11 +33,16 @@
 using namespace std;
 using namespace ELFIO;
 
+/*
+ * This program has as input a x86 binary file, which is emulated with Unicorn
+ * while recording the execution trace. At the end, it emits the recorded trace
+ * in a compacted file compatible with RAIn.
+ */
+
 trace_io::raw_output_pipe_t *out;
 
 // callback for tracing instruction
-static void hook_code64(uc_engine *uc, uint64_t address, uint32_t size, void *user_data)
-{
+static void hook_code64(uc_engine *uc, uint64_t address, uint32_t size, void *user_data) {
     uint64_t rip;
 
     uc_reg_read(uc, UC_X86_REG_RIP, &rip);
@@ -29,8 +55,7 @@ static void hook_code64(uc_engine *uc, uint64_t address, uint32_t size, void *us
     out->write_trace_item(t1);
 }
 
-static void test_x86_64(char *filename)
-{
+static void test_x86_64(char *filename) {
     elfio reader;
 
     uc_engine *uc;
@@ -96,8 +121,7 @@ static void test_x86_64(char *filename)
     uc_close(uc);
 }
 
-int main(int argc, char **argv, char **envp)
-{
+int main(int argc, char **argv, char **envp) {
   out = new trace_io::raw_output_pipe_t(string("test"));
 
   if (argc < 2) {

@@ -1,3 +1,24 @@
+/***************************************************************************
+ *   Copyright (C) 2016 by:                                                *
+ *   Edson Borin (edson@ic.unicamp.br)                                     *
+ *   Vanderson M. Rosario (vandersonmr2@gmail.com)                         *
+ *                                                                         *
+ *   This program is free software; you can redistribute it and/or modify  *
+ *   it under the terms of the GNU General Public License as published by  *
+ *   the Free Software Foundation; either version 2 of the License, or     *
+ *   (at your option) any later version.                                   *
+ *                                                                         *
+ *   This program is distributed in the hope that it will be useful,       *
+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of        *
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         *
+ *   GNU General Public License for more details.                          *
+ *                                                                         *
+ *   You should have received a copy of the GNU General Public License     *
+ *   along with this program; if not, write to the                         *
+ *   Free Software Foundation, Inc.,                                       *
+ *   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             *
+ ***************************************************************************/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <map>
@@ -17,6 +38,12 @@ static UINT64 icount = 0;
 static UINT64 rcount = 0;
 static int hasBegin = 0;
 std::stringstream buffer;
+
+/*
+ * This is a library to record traces of programs emulated by PIN.
+ * The trace is outputed using the raw format and need by converted
+ * to be used in RAIn.
+ */
 
 UINT32 Usage() {
   cout << "This tool produces an instruction stream w/ runtime metadata" << endl;

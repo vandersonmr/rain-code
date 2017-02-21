@@ -22,6 +22,11 @@ cmake_minimum_required (VERSION 2.6)
 file(GLOB headers *.h)
 file(GLOB sources *.cpp)
 
+add_subdirectory(RFTs)
+add_subdirectory(Analysis)
+
 include_directories ("${RAIn_SOURCE_DIR}/arglib")
 
 add_library(rainlib ${sources} ${headers})
+
+target_link_libraries(rainlib RFTs Analysis)

@@ -1,7 +1,7 @@
 /***************************************************************************
  *   Copyright (C) 2013 by:                                                *
  *   Edson Borin (edson@ic.unicamp.br)                                     *
- *   Vanderson M. Rosario (vandersonmr2@gmail.com)
+ *   Vanderson M. Rosario (vandersonmr2@gmail.com)                         *
  *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
  *   it under the terms of the GNU General Public License as published by  *
@@ -48,8 +48,7 @@ clarg::argString reg_stats_fname("-reg_stats",
 clarg::argString overall_stats_fname("-overall_stats", 
     "file name to dump overall statistics in CSV format", 
     "overall_stats.csv");
-
-clarg::argBool mix_usr_sys("-mix_NET",  "Allow user and system code in the same NET regions.");
+clarg::argBool mix_usr_sys("-mix",  "Allow user and system code in the same NET regions.");
 
 #define LINUX_SYS_THRESHOLD   0xB2D05E00         // 3000000000
 #define WINDOWS_SYS_THRESHOLD 0xF9CCD8A1C5080000 // 18000000000000000000 
@@ -58,89 +57,77 @@ clarg::argBool mix_usr_sys("-mix_NET",  "Allow user and system code in the same 
 clarg::argBool lt("-lt", "linux trace. System/user address threshold = 0xB2D05E00");
 clarg::argBool wt("-wt", "windows trace. System/user address threshold = 0xF9CCD8A1C5080000");
 
-void usage(char* prg_name) 
-{
-  cout << "Version: 0.9.6" << endl << endl;
+void usage(char* prg_name) {
+  cout << "Version: 1.0.0 (02-21-2017)" << endl << endl;
 
-  cout << "Usage: " << prg_name << " -b trace_path -s index -e index [-h] [-o stats.csv] {-lt|-wt}" 
-    << endl << endl;
+  cout << "Usage: " << prg_name << 
+    " -b trace_path -s index -e index [-h] [-o stats.csv] [-mix] {-lt|-wt} [-bin path/binary] \n\n";
 
-  cout << "DESCRIPTION:" << endl;
+  cout << "DESCRIPTION:\n";
 
-  cout << "This program implements the RAIn (Region Appraisal Infrastructure) and can be" << endl;
-  cout << "used to investigate region formation strategies for dynamic binary" << endl;
-  cout << "translators. For more information, please, read: Zinsly, R. \"Region formation" << endl;
-  cout << "techniques for the design of efficient virtual machines\". MsC" << endl;
-  cout << "Thesis. Institute of Computing, 2013 (in portuguese)." << endl;
+  cout << "This program implements the RAIn (Region Appraisal Infrastructure) and can be\n";
+  cout << "used to investigate region formation strategies for dynamic binary\n";
+  cout << "translators. For more information, please, read: Zinsly, R. \"Region formation\n";
+  cout << "techniques for the design of efficient virtual machines\". MsC\n";
+  cout << "Thesis. Institute of Computing, 2013 (in portuguese).\n";
 
-  cout << "The tool takes as input a trace of instructions, emulate the formation and " << endl;
-  cout << "execution of  regions, and generates statistics about the region formation" << endl;
-  cout << "techniques. " << endl;
-  cout << "The input trace may be store in multiple files, each one" << endl;
-  cout << "containing a sub-sequence of the trace. Each file is named" << endl;
-  cout << "BASENAME.INDEX.bin.gz, where trace_path is the trace_path of" << endl;
-  cout << "the trace and INDEX indicates the sequence of the trace." << endl;
-  cout << "The user must provide the trace_path (-b), the start index (-s) and the end " << endl;
-  cout << "index (-e)." << endl << endl;
+  cout << "The tool takes as input a trace of instructions, emulate the formation and \n";
+  cout << "execution of  regions, and generates statistics about the region formation\n";
+  cout << "techniques. \n";
+  cout << "The input trace may be store in multiple files, each one\n";
+  cout << "containing a sub-sequence of the trace. Each file is named\n";
+  cout << "BASENAME.INDEX.bin.gz, where trace_path is the trace_path of\n";
+  cout << "the trace and INDEX indicates the sequence of the trace.\n";
+  cout << "The user must provide the trace_path (-b), the start index (-s) and the end \n";
+  cout << "index (-e).\n\n";
 
-  cout << "ARGUMENTS:" << endl;
+  cout << "ARGUMENTS:\n";
   clarg::arguments_descriptions(cout, "  ", "\n");
 }
 
-int validate_arguments()
-{
+int validate_arguments() {
   if (!start_i.was_set()) {
     cerr << "Error: you must provide the start file index."
-      << "(use -h for help)" << endl;
+      << "(use -h for help)\n";
     return 1;
   }
 
   if (!end_i.was_set()) {
     cerr << "Error: you must provide the end file index."
-      << "(use -h for help)" << endl;
+      << "(use -h for help)\n";
     return 1;
   }
 
   if (!trace_path.was_set()) {
     cerr << "Error: you must provide the trace_path."
-      << "(use -h for help)" << endl;
+      << "(use -h for help)\n";
     return 1;
   }
 
   if (!technique.was_set()) {
     cerr << "Error: you must provide the RF Technique: net, lei, mret2, tt or lef"
-      << "(use -h for help)" << endl;
+      << "(use -h for help)\n";
     return 1;
   }
 
   if (end_i.get_value() < start_i.get_value()) {
     cerr << "Error: start index must be less (<) or equal (=) to end index" 
-      << "(use -h for help)" << endl;
+      << "(use -h for help)\n";
     return 1;
   }
 
-  if (mix_usr_sys.was_set()) {
-    rf_technique::RF_Technique::set_mix_usr_sys(true);
-  } else {
-    rf_technique::RF_Technique::set_mix_usr_sys(false);
-  }
-
-
   if (lt.was_set()) {
     if (wt.was_set()) {
-      cerr << "Error: both -lt and -lw were set, select only one." << endl;
+      cerr << "Error: both -lt and -lw were set, select only one.\n";
       return 1;
     }
-    else {
-      rf_technique::RF_Technique::set_system_threshold(LINUX_SYS_THRESHOLD);
-    }
   }
-  else {
-    if (wt.was_set()) {
-      rf_technique::RF_Technique::set_system_threshold(WINDOWS_SYS_THRESHOLD);
-    }
-    else {
-      cerr << "Error: either -lt or -lw must be selected." << endl;
+
+  string chosen_technique = technique.get_value();
+  if (chosen_technique == "lei" || chosen_technique == "netplus" || chosen_technique == "lefplus") {
+    if (!bin_path.was_set()) {
+      cerr << "Error: you must provide a binary file path with -bin.\n" 
+        << "(use -h for help)\n";
       return 1;
     }
   }
@@ -179,8 +166,7 @@ rf_technique::InstructionSet* load_binary(string binary_path) {
   return instructions;
 }
 
-int main(int argc,char** argv)
-{
+int main(int argc,char** argv) {
   // Parse the arguments
   if (clarg::parse_arguments(argc, argv)) {
     cerr << "Error when parsing the arguments!" << endl;
@@ -211,21 +197,16 @@ int main(int argc,char** argv)
   }
 
   rf_technique::RF_Technique* rf = NULL;
-  std::string chosen_technique = technique.get_value();
+  string chosen_technique = technique.get_value();
 
   if (chosen_technique == "lei" || chosen_technique == "netplus" || chosen_technique == "lefplus") {
-    if (!bin_path.was_set()) {
-      cerr << "You must provide the binary file path with -bin" << endl;
-      return 1;
-    }
-
     rf_technique::InstructionSet* code_insts = load_binary(bin_path.get_value());
 
     if (chosen_technique == "netplus") {
       unsigned limit = 10;
       if (depth_limit.was_set()) limit = depth_limit.get_value();
       rf = new rf_technique::NETPlus(*code_insts, limit);
-    } else if (chosen_technique == "LEI") {
+    } else if (chosen_technique == "lei") {
       rf = new rf_technique::LEI(*code_insts);
     } else {
       rf = new rf_technique::LEFPlus(*code_insts);
@@ -242,6 +223,16 @@ int main(int argc,char** argv)
     rf = new rf_technique::NET();
   }
 
+  if (mix_usr_sys.was_set())
+    rf->set_mix_usr_sys(true);
+  else
+    rf->set_mix_usr_sys(false);
+
+  if (lt.was_set())
+    rf->set_system_threshold(LINUX_SYS_THRESHOLD);
+  else
+    rf->set_system_threshold(WINDOWS_SYS_THRESHOLD);
+
   // While there are instructions
   while (in.get_next_instruction(next)) {
     // Process the trace
@@ -254,16 +245,16 @@ int main(int argc,char** argv)
 
   //Print statistics
   if (rf) {
-    std::cout << "Printing OverallStats" << std::endl;
-    std::string s("test.dot");
+    cout << "Printing OverallStats\n";
+    string s("test.dot");
     ofstream overall_stats_f(overall_stats_fname.get_value().c_str());
     rf->rain.printOverallStats(overall_stats_f);
     overall_stats_f.close(); 
 
-    std::cout << "Printing Regions Dots" << std::endl;
+    cout << "Printing Regions Dots\n";
     rf->rain.printRegionsDOT(s);
 
-    std::cout << "Printing RAInStats" << std::endl;
+    cout << "Printing RAInStats\n";
     ofstream reg_stats_f(reg_stats_fname.get_value().c_str());
     rf->rain.printRAInStats(reg_stats_f);
     reg_stats_f.close();

@@ -40,8 +40,7 @@ namespace rain {
 
     class Edge;
 
-    struct EdgeListItem
-    {
+    struct EdgeListItem {
       EdgeListItem() : edge(NULL), next(NULL) {}
       Edge* edge;
       EdgeListItem* next;
@@ -51,8 +50,7 @@ namespace rain {
     /** 
      *  @brief A Region Node object represents one instruction inside the region
      */
-    class Node
-    {
+    class Node {
     public:
 
       Node();
@@ -92,8 +90,7 @@ namespace rain {
     /** 
      *  @brief A Region Edge represents the control flow between instructions.
      */
-    class Edge
-    {
+    class Edge {
     public:
 
       Edge() {}
@@ -126,15 +123,17 @@ namespace rain {
     unsigned long long mainExitsFreq() const;
     bool isSpannedCycle() const;
 
-    void insertNode(Node * node)
-    {
+    void insertNode(Node * node) {
       node->region = this;
       nodes.insert(node);
     }
+
     void setEntryNode(Node* node)
     { entry_nodes.insert(node); }
+
     void setExitNode(Node* node)
     {exit_nodes.insert(node);}
+
     Edge* createInnerRegionEdge(Node* src, Node* tgt);
 
     /** A região é composta por nós ligados por arestas, semelhante a um CFG. */
@@ -182,8 +181,7 @@ namespace rain {
    * executeEdge(edg);
    * 
    */
-  class RAIn
-  {
+  class RAIn {
   private:
 
     map<unsigned long long, Region::Edge*> edges;
@@ -222,8 +220,7 @@ namespace rain {
     /** Hash table for region start freq. */
     unordered_map<unsigned, unsigned long long> region_start_freq;
 
-    RAIn() : region_id_generator(1) // id 0 is reserved for NTE
-    {
+    RAIn() : region_id_generator(1) { // id 0 is reserved for NTE
       nte = new Region::Node(0);
       nte->region = 0;
       nte_loop_edge = new Region::Edge();
@@ -231,16 +228,13 @@ namespace rain {
       cur_node = nte;
     }
 
-    ~RAIn()
-    {
+    ~RAIn() {
       delete nte;
       delete nte_loop_edge;
-      for (map<unsigned, Region*>::iterator it = regions.begin(); 
-          it != regions.end(); it++)
-      {
-        Region* r = it->second;
-        delete r;
-      }
+
+      for (auto i : regions)
+        delete i.second;
+
       regions.clear();
     }
   
@@ -273,7 +267,6 @@ namespace rain {
     void printRegionDOT(Region *, ostream&);
     void printRegionsDOT(string&);
   };
-
 };
 
 #endif // RAIN_H

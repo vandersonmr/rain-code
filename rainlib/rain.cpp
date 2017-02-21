@@ -19,6 +19,7 @@
  *   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             *
  ***************************************************************************/
 #include "rain.h"
+
 #include <iostream>
 #include <fstream>
 #include <sstream>  // stringstream
@@ -41,16 +42,13 @@ using namespace rain;
 #endif
 
 Region::Node::Node() : region(NULL), freq_counter(0), 
-  out_edges(NULL), in_edges(NULL) 
-{}
+  out_edges(NULL), in_edges(NULL) {}
 
 Region::Node::Node(unsigned long long a) : region(NULL), freq_counter(0), 
   out_edges(NULL), in_edges(NULL),
-  addr(a)
-{}
+  addr(a) {}
 
-Region::Node::~Node()
-{
+Region::Node::~Node() {
   EdgeListItem* it = out_edges;
   while (it) {
     EdgeListItem* next = it->next;
@@ -66,8 +64,7 @@ Region::Node::~Node()
   }
 }
 
-Region::Edge* Region::Node::findInEdge(unsigned long long prev_ip)
-{
+Region::Edge* Region::Node::findInEdge(unsigned long long prev_ip) {
   if (!in_edges) return NULL;
   if (in_edges->edge->src->getAddress() == prev_ip) return in_edges->edge;
 
@@ -89,8 +86,7 @@ Region::Edge* Region::Node::findInEdge(unsigned long long prev_ip)
   return NULL;
 }
 
-Region::Edge* Region::Node::findOutEdge(unsigned long long next_ip)
-{
+Region::Edge* Region::Node::findOutEdge(unsigned long long next_ip) {
   if (!out_edges) return NULL;
   if (!(out_edges->edge)) return NULL;
   if (!(out_edges->edge->tgt)) return NULL;
@@ -114,28 +110,21 @@ Region::Edge* Region::Node::findOutEdge(unsigned long long next_ip)
   return NULL;
 }
 
-Region::Edge* Region::Node::findOutEdge(Region::Node* target) const
-{
-  for (EdgeListItem* it = out_edges; it; it = it->next) {
-    if (it->edge->tgt == target) {
+Region::Edge* Region::Node::findOutEdge(Region::Node* target) const {
+  for (EdgeListItem* it = out_edges; it; it = it->next)
+    if (it->edge->tgt == target)
       return it->edge;
-    }
-  }
   return NULL;
 }
 
-Region::Edge* Region::Node::findInEdge(Region::Node* source) const
-{
-  for (EdgeListItem* it = in_edges; it; it = it->next) {
-    if (it->edge->src == source) {
+Region::Edge* Region::Node::findInEdge(Region::Node* source) const {
+  for (EdgeListItem* it = in_edges; it; it = it->next)
+    if (it->edge->src == source)
       return it->edge;
-    }
-  }
   return NULL;
 }
 
-void Region::Node::insertOutEdge(Region::Edge* ed, Region::Node* target)
-{
+void Region::Node::insertOutEdge(Region::Edge* ed, Region::Node* target) {
 #ifdef DEBUG
   assert(ed->src == this);
   assert(ed->tgt == target);
@@ -149,8 +138,7 @@ void Region::Node::insertOutEdge(Region::Edge* ed, Region::Node* target)
   out_edges = it;
 }
 
-void Region::Node::insertInEdge(Region::Edge* ed, Region::Node* source)
-{
+void Region::Node::insertInEdge(Region::Edge* ed, Region::Node* source) {
 #ifdef DEBUG
   assert(ed->tgt == this);
   assert(ed->src == source);
@@ -164,14 +152,11 @@ void Region::Node::insertInEdge(Region::Edge* ed, Region::Node* source)
   in_edges = it;
 }
 
-Region::~Region()
-{
+Region::~Region() {
   // Remove all edges.
-  auto eit = region_inner_edges.begin();
-  for (; eit!= region_inner_edges.end(); eit++) {
-    Edge* e = *eit;
+  for (auto e : region_inner_edges)
     delete e;
-  }
+
   region_inner_edges.clear();
 
   // Remove all nodes.
@@ -230,6 +215,7 @@ void Region::moveAndDestroy(Region* reg, unordered_map<unsigned long long, Node*
       else
         tgt->insertOutEdge(ed, ed->tgt);
     }
+
     for (EdgeListItem* prev = src->in_edges; prev != NULL; prev = prev->next) {
       Region::Edge* ed = prev->edge;
       if (translation_table.count(ed->src) != 0) ed->src = translation_table[ed->src];
@@ -270,8 +256,7 @@ Region::Node* Region::getNode(unsigned long long addr) {
   return nullptr;
 }
 
-void Region::insertRegOutEdge(Edge* ed)
-{
+void Region::insertRegOutEdge(Edge* ed) {
 #ifdef DEBUG
   assert(ed->src->region == this);
   // assert(ed->tgt->region != this); // This assert may not be valid. A side
@@ -285,8 +270,7 @@ void Region::insertRegOutEdge(Edge* ed)
   reg_out_edges = it;
 }
 
-void Region::insertRegInEdge(Region::Edge* ed)
-{
+void Region::insertRegInEdge(Region::Edge* ed) {
 #ifdef DEBUG
   // assert(ed->src->region != this); // This assert may not be valid. A side
   // exit may reach the entry of the same region. It is still a valid inter
@@ -300,8 +284,7 @@ void Region::insertRegInEdge(Region::Edge* ed)
   reg_in_edges = it;
 }
 
-Region::Edge* Region::createInnerRegionEdge(Region::Node* src, Region::Node* tgt)
-{
+Region::Edge* Region::createInnerRegionEdge(Region::Node* src, Region::Node* tgt) {
   Edge* ed = new Edge(src,tgt);
   src->insertOutEdge(ed,tgt);
   tgt->insertInEdge(ed,src);
@@ -310,8 +293,7 @@ Region::Edge* Region::createInnerRegionEdge(Region::Node* src, Region::Node* tgt
 }
 
 
-Region::Edge* RAIn::queryNext(unsigned long long next_ip)
-{
+Region::Edge* RAIn::queryNext(unsigned long long next_ip) {
   if (cur_node == nte) {
     // NTE node (treated separatedely for efficiency reasons)
     map<unsigned long long, Region::Edge*>::iterator it =
@@ -337,8 +319,7 @@ Region::Edge* RAIn::queryNext(unsigned long long next_ip)
   }
 }
 
-Region::Edge* RAIn::addNext(unsigned long long next_ip)
-{
+Region::Edge* RAIn::addNext(unsigned long long next_ip) {
   // Sanity checking
   DBG_ASSERT(queryNext(next_ip) == NULL);
   Region::Edge* edg = NULL;
@@ -347,24 +328,22 @@ Region::Edge* RAIn::addNext(unsigned long long next_ip)
   // Search for region entries.
   unordered_map<unsigned long long, Region::Node*>::iterator it = 
     region_entry_nodes.find(next_ip);
-  if(it != region_entry_nodes.end()) {
+
+  if(it != region_entry_nodes.end())
     next_node = it->second;
-  } else {
+  else
     next_node = NULL;
-  }
 
   if (cur_node == nte) {
     if (next_node == NULL) {
       cerr << "Error, addNext should be not called when "
-        << "queryNext returns a valid edge." << endl;
+        << "queryNext returns a valid edge." << "\n";
       exit (1);
-    }
-    else {
+    } else {
       // Add edge from nte to region entry.
       edg = createInterRegionEdge(nte, next_node);
     }
-  }
-  else {
+  } else {
     // current node belongs to region.
     if (next_node == NULL) {
       Region* cur_reg = cur_node->region;
@@ -377,8 +356,7 @@ Region::Edge* RAIn::addNext(unsigned long long next_ip)
       } else {
         edg = cur_reg->createInnerRegionEdge(cur_node, next_node);
       }
-    }
-    else {
+    } else {
       // add edge from cur_node to region_entry (link regions)
       edg = createInterRegionEdge(cur_node, next_node);
     }
@@ -388,9 +366,9 @@ Region::Edge* RAIn::addNext(unsigned long long next_ip)
   return edg;
 }
 
-void RAIn::executeEdge(Region::Edge* edge)
-{
+void RAIn::executeEdge(Region::Edge* edge) {
   if (edge->src != cur_node) cur_node = edge->src;
+
   cur_node = edge->tgt;
   edge->freq_counter++;
   cur_node->freq_counter++;
@@ -405,8 +383,7 @@ void RAIn::executeEdge(Region::Edge* edge)
   }
 }
 
-Region* RAIn::createRegion()
-{
+Region* RAIn::createRegion() {
   Region* region;
   region = new Region();
   region->id = region_id_generator++;
@@ -415,19 +392,16 @@ Region* RAIn::createRegion()
   return region;
 }
 
-void RAIn::setEntry(Region::Node* node)
-{ 
+void RAIn::setEntry(Region::Node* node) { 
   region_entry_nodes[node->getAddress()] = node;
   node->region->setEntryNode(node);
 }
 
-void RAIn::setExit(Region::Node* node)
-{
+void RAIn::setExit(Region::Node* node) {
   node->region->setExitNode(node);
 }
 
-Region::Edge* RAIn::createInterRegionEdge(Region::Node* src, Region::Node* tgt)
-{
+Region::Edge* RAIn::createInterRegionEdge(Region::Node* src, Region::Node* tgt) {
   Region::Edge* ed = new Region::Edge(src,tgt);
   src->insertOutEdge(ed,tgt);
   tgt->insertInEdge(ed,src);
@@ -443,16 +417,14 @@ Region::Edge* RAIn::createInterRegionEdge(Region::Node* src, Region::Node* tgt)
   return ed;
 }
 
-void RAIn::printRAInStats(ostream& stats_f)
-{
+void RAIn::printRAInStats(ostream& stats_f) {
   // Print statistics for regions
   printRegionsStats(stats_f);
   // Print statistics for NTE
-  stats_f << "0" << "," << nte->freq_counter << endl;
+  stats_f << "0" << "," << nte->freq_counter << "\n";
 }
 
-unsigned long long Region::allNodesFreq() const
-{
+unsigned long long Region::allNodesFreq() const {
   unsigned long long c = 0;
   for (Region::Node* node : nodes)
     c += node->freq_counter;
@@ -460,8 +432,7 @@ unsigned long long Region::allNodesFreq() const
   return c;
 }
 
-unsigned long long Region::entryNodesFreq() const
-{
+unsigned long long Region::entryNodesFreq() const {
   unsigned long long c = 0;
   for (auto entry_node : entry_nodes) {
     for (EdgeListItem* it = entry_node->in_edges; it; it=it->next) {
@@ -472,16 +443,14 @@ unsigned long long Region::entryNodesFreq() const
   return c;
 }
 
-unsigned long long Region::exitNodesFreq() const
-{
+unsigned long long Region::exitNodesFreq() const {
   unsigned long long c = 0;
   for (auto exit_node : exit_nodes)
     c += exit_node->freq_counter;
   return c;
 }
 
-bool Region::isInnerEdge(Region::Edge* e) const
-{
+bool Region::isInnerEdge(Region::Edge* e) const {
   for (auto it=region_inner_edges.begin(); it != region_inner_edges.end(); it++) {
     if ( (*it) == e)
       return true;
@@ -489,25 +458,20 @@ bool Region::isInnerEdge(Region::Edge* e) const
   return false;
 }
 
-unsigned long long Region::mainExitsFreq() const
-{
+unsigned long long Region::mainExitsFreq() const {
   unsigned long long c = 0;
-
   for (auto exit_node : exit_nodes) {
-
     for (EdgeListItem* eit = exit_node->out_edges; eit; eit=eit->next) {
       Edge* e = eit->edge;
       // Is it an exit edge?
       if (!isInnerEdge(e))
         c += e->freq_counter;
     }
-
   }
   return c;
 }
 
-unsigned long long Region::externalEntriesFreq() const
-{
+unsigned long long Region::externalEntriesFreq() const {
   unsigned long long c = 0;
   for (auto entry_node : entry_nodes) {
     for (EdgeListItem* it = entry_node->in_edges; it; it=it->next) {
@@ -530,20 +494,17 @@ bool Region::isSpannedCycle() const {
   return false;
 }
 
-void RAIn::printRegionsStats(ostream& stats_f)
-{
-  map<unsigned, Region*>::iterator rit;
-
+void RAIn::printRegionsStats(ostream& stats_f) {
   stats_f << "Region," 
     << "# Nodes," 
     << "All Nodes Freq," 
     << "Entry Nodes Freq," 
     << "Exit Nodes Freq," 
     << "External Entries,"
-    << endl;
-  for (rit = regions.begin(); rit != regions.end(); rit++)
-  {
-    Region* r = rit->second;
+    << "\n";
+
+  for (auto i : regions) {
+    Region* r = i.second;
 
     stats_f << r->id << ","
       << r->nodes.size() << ","
@@ -551,21 +512,19 @@ void RAIn::printRegionsStats(ostream& stats_f)
       << r->entryNodesFreq() << ","
       << r->exitNodesFreq() << ","
       << r->externalEntriesFreq() << ","
-      << endl;
+      << "\n";
   }
 }
 
 struct cov_less_than_key
 {
   inline bool operator() (const pair<Region*,unsigned long long>& p1,
-      const pair<Region*,unsigned long long>& p2)
-  {
+      const pair<Region*,unsigned long long>& p2) {
     return (p1.second >= p2.second);
   }
 };
 
-void RAIn::printOverallStats(ostream& stats_f)
-{
+void RAIn::printOverallStats(ostream& stats_f) {
   unsigned long long total_reg = 0;
   unsigned long long total_stat_reg_size = 0;
   unsigned long long total_reg_entries = 0;
@@ -585,8 +544,7 @@ void RAIn::printOverallStats(ostream& stats_f)
   unsigned long long _90_cover_set_instrs = 0;
 
   vector< pair<Region*,unsigned long long> > region_cov;
-  for (auto rit : regions)
-  {
+  for (auto rit : regions) {
     Region* r = rit.second;
 
     if (!r->alive) continue;
@@ -609,6 +567,7 @@ void RAIn::printOverallStats(ostream& stats_f)
     for (Region::Node* node : r->nodes)
       unique_instrs[node->getAddress()] = 1;
   }
+
   unsigned long long total_unique_instrs = unique_instrs.size();
 
   // Sort regions by coverage (# of instructions executed) or by avg_dyn_size?
@@ -644,100 +603,97 @@ void RAIn::printOverallStats(ostream& stats_f)
     }
   }
 
-  stats_f << "reg_dyn_inst_count" << "," << total_reg_freq << ",Freq. of instructions emulated by regions" << endl;
-  stats_f << "reg_stat_instr_count" << "," << total_stat_reg_size  << ",Static # of instructions translated into regions" << endl;
-  stats_f << "reg_uniq_instr_count" << "," << total_unique_instrs << ",# of unique instructions included on regions" << endl;
-  stats_f << "reg_dyn_entries" <<  "," << total_reg_entries << ",Regions entry frequency count" << endl;
-  stats_f << "number_of_regions" <<  "," << total_reg << ",Total number of regions" << endl;
-  stats_f << "interp_dyn_inst_count" << "," << nte_freq << ",Freq. of instruction emulated by interpretation" << endl;
+  stats_f << "reg_dyn_inst_count" << "," << total_reg_freq << ",Freq. of instructions emulated by regions" << "\n";
+  stats_f << "reg_stat_instr_count" << "," << total_stat_reg_size  << ",Static # of instructions translated into regions" << "\n";
+  stats_f << "reg_uniq_instr_count" << "," << total_unique_instrs << ",# of unique instructions included on regions" << "\n";
+  stats_f << "reg_dyn_entries" <<  "," << total_reg_entries << ",Regions entry frequency count" << "\n";
+  stats_f << "number_of_regions" <<  "," << total_reg << ",Total number of regions" << "\n";
+  stats_f << "interp_dyn_inst_count" << "," << nte_freq << ",Freq. of instruction emulated by interpretation" << "\n";
 
   assert(total_reg_entries != 0 && "total_reg_entries is 0 and it's dividing");
   stats_f << "avg_dyn_reg_size" << "," <<
     (double) total_reg_freq / (double) total_reg_entries
-    << "," << "Average dynamic region size." << endl;
+    << "," << "Average dynamic region size." << "\n";
 
   assert(total_reg != 0 && "region.size() is 0 and it's dividing");
   stats_f << "avg_stat_reg_size" << "," <<
     (double) total_stat_reg_size / (double) total_reg
-    << "," << "Average static region size." << endl;
+    << "," << "Average static region size." << "\n";
 
   stats_f << "dyn_reg_coverage" << "," << 
     (double) total_reg_freq / (double) (total_reg_freq + nte_freq)
-    << "," << "Dynamic region coverage." << endl;
+    << "," << "Dynamic region coverage." << "\n";
 
   assert(total_unique_instrs != 0 && "total unique is 0 and it's dividing");
   stats_f << "code_duplication" << "," << 
     (double) total_stat_reg_size / (double) total_unique_instrs
-    << "," << "Region code duplication" << endl;
+    << "," << "Region code duplication" << "\n";
   stats_f << "completion_ratio" << "," << 
     (double) total_reg_main_exits / (double) total_reg_entries
-    << "," << "Completion Ratio" << endl;
+    << "," << "Completion Ratio" << "\n";
 
-  stats_f << "num_expasions" << "," << expansions << "," << "Number of Expansions" << endl;
-  stats_f << "side_entries" << "," << total_side_entries/ (double) total_reg << "," << "Side Entries" << endl;
+  stats_f << "num_expasions" << "," << expansions << "," << "Number of Expansions" << "\n";
+  stats_f << "side_entries" << "," << total_side_entries/ (double) total_reg << "," << "Side Entries" << "\n";
   stats_f << "region_transitions" << "," << region_transitions << ","
-    << "Number of regions transitions" << endl;
+    << "Number of regions transitions" << "\n";
   stats_f << "num_counters" << "," << number_of_counters << ","
-    << "Number of used counters" << endl;
+    << "Number of used counters" << "\n";
   stats_f << "spanned_cycles" << "," << total_spanned_cycles / (double) total_reg << ","
-    << "Spanned Cycle Ratio" << endl;
+    << "Spanned Cycle Ratio" << "\n";
   stats_f << "spanned_exec_ration" <<  "," << 1-(total_reg_external_entries / (double) total_reg_entries) <<
-    ",Spanned execution ratio" << endl;
+    ",Spanned execution ratio" << "\n";
 
   stats_f << "70_cover_set_regs" << "," << _70_cover_set_regs
-    << "," << "minumun number of regions to cover 70% of dynamic execution" << endl;
+    << "," << "minumun number of regions to cover 70% of dynamic execution" << "\n";
   stats_f << "80_cover_set_regs" << "," << _80_cover_set_regs
-    << "," << "minumun number of regions to cover 80% of dynamic execution" << endl;
+    << "," << "minumun number of regions to cover 80% of dynamic execution" << "\n";
   stats_f << "90_cover_set_regs" << "," << _90_cover_set_regs
-    << "," << "minumun number of regions to cover 90% of dynamic execution" << endl;
+    << "," << "minumun number of regions to cover 90% of dynamic execution" << "\n";
   stats_f << "70_cover_set_instrs" << "," << _70_cover_set_instrs
-    << "," << "minumun number of static instructions on regions to cover 70% of dynamic execution" << endl;
+    << "," << "minumun number of static instructions on regions to cover 70% of dynamic execution" << "\n";
   stats_f << "80_cover_set_instrs" << "," << _80_cover_set_instrs
-    << "," << "minumun number of static instructions on regions to cover 80% of dynamic execution" << endl;
+    << "," << "minumun number of static instructions on regions to cover 80% of dynamic execution" << "\n";
   stats_f << "90_cover_set_instrs" << "," << _90_cover_set_instrs
-    << "," << "minumun number of static instructions on regions to cover 90% of dynamic execution" << endl;
+    << "," << "minumun number of static instructions on regions to cover 90% of dynamic execution" << "\n";
 }
 
-void RAIn::printRegionDOT(Region* region, ostream& reg)
-{
-  reg << "digraph G{" << endl;
+void RAIn::printRegionDOT(Region* region, ostream& reg) {
+  reg << "digraph G{" << "\n";
 
   map<Region::Node*,unsigned> node_id;
   unsigned id_gen = 1;
   // For each node.
-  reg << "/* nodes */" << endl;
-  reg << "/* Start Freq.: " << region_start_freq[region->id] << " */" << endl;
+  reg << "/* nodes */" << "\n";
+  reg << "/* Start Freq.: " << region_start_freq[region->id] << " */" << "\n";
   reg << "/* entry: ";
   for (Region::Node* n : region->entry_nodes) {
     reg << "0x" << std::hex << n->getAddress() << std::dec << " ";
   }
-  reg << " */" << endl;
+  reg << " */" << "\n";
 
   for (Region::Node* n : region->nodes) {
     node_id[n] = id_gen++;
-    reg << "  n" << node_id[n] << " [label=\"0x" << std::hex << n->getAddress() << "\"]" << endl;
+    reg << "  n" << node_id[n] << " [label=\"0x" << std::hex << n->getAddress() << "\"]" << "\n";
   }
 
-  reg << "/* edges */" << endl;
+  reg << "/* edges */" << "\n";
   for (Region::Node* n : region->nodes) {
     // For each out edge.
     for (Region::EdgeListItem* i = n->out_edges; i; i=i->next) {
       Region::Edge* edg = i->edge;
-      reg << "n" << node_id[edg->src] << " -> " << "n" << node_id[edg->tgt] << ";" << endl;
+      reg << "n" << node_id[edg->src] << " -> " << "n" << node_id[edg->tgt] << ";" << "\n";
     }
     // For each in edge.
     for (Region::EdgeListItem* i = n->in_edges; i; i=i->next) {
       Region::Edge* edg = i->edge;
-      reg << "n" << node_id[edg->src] << " -> " << "n" << node_id[edg->tgt] << ";" << endl;
+      reg << "n" << node_id[edg->src] << " -> " << "n" << node_id[edg->tgt] << ";" << "\n";
     }
   }
 
-  reg << "}" << endl;
-
+  reg << "}" << "\n";
 }
 
-void RAIn::printRegionsDOT(string& dotf_prefix)
-{
+void RAIn::printRegionsDOT(string& dotf_prefix) {
   map<unsigned, Region*>::iterator it,end;
   it = regions.begin();
   end = regions.end();
