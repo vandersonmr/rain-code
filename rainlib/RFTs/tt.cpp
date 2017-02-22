@@ -112,8 +112,8 @@ void TraceTree::process(unsigned long long cur_addr, char cur_opcode[16], char u
         RF_DBG_MSG("Recording " << "0x" << setbase(16) <<
             cur_addr << " on the recording buffer" << endl);
 
-        if (is_region_addr_space(cur_addr))
-          recording_buffer.append(cur_addr); //, cur_opcode, cur_length);
+        if (is_region_addr_space(cur_addr)) 
+          recording_buffer.append(cur_addr);
       }
     }
   } else if (recording) {

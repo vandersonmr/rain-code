@@ -59,7 +59,7 @@ unordered_map<unsigned long long, unsigned> perf;
 void CallsInPage::process(unsigned long long cur_addr, char cur_opcode[16], char unsigned cur_length, 
     unsigned long long nxt_addr, char nxt_opcode[16], char unsigned nxt_length) {
 
-  if (!is_system_instr(cur_addr)) return;
+  if (!is_user_instr(cur_addr)) return;
   unsigned long long page = last_addr >> PAGE_BITS_SIZE;
   touchedPages[page] = true;
 

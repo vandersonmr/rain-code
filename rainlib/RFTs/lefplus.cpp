@@ -171,7 +171,7 @@ void LEFPlus::expand(std::vector<rain::Region*> regions) {
       unsigned long long addrs = node->getAddress();
 
       if (addrs_space == -1)
-        addrs_space = is_system_instr(addrs);
+        addrs_space = is_user_instr(addrs);
 
       if (isFlowControl(instructions.getOpcode(addrs))) {
         s.push(addrs);
@@ -217,7 +217,7 @@ void LEFPlus::expand(std::vector<rain::Region*> regions) {
               break;
             }
 
-            if (addrs_space != is_system_instr(it->first) ||
+            if (addrs_space != is_user_instr(it->first) ||
                 rain.region_entry_nodes.count(it->first) != 0) {
               break;
             }

@@ -86,6 +86,8 @@ void NET::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
       recording = false;
       buildRegion();
     } else {
+      // Only add a new instruction if it is from the same type 
+      // as the first one in the recording buffer
       if (is_region_addr_space(cur_addr)) {
         // Record target instruction on region formation buffer
         RF_DBG_MSG("Recording " << "0x" << setbase(16) <<

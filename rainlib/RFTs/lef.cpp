@@ -89,6 +89,11 @@ void LEF::expandRegion(rain::Region* reg) {
       for (auto edge : *pair.second) {
         unsigned long long src_addr = edge.first;
         unsigned long long tgt_addr = edge.second;
+
+        if (!mix_usr_sys)
+          if (switched_mode(src_addr, tgt_addr))
+            continue;
+
         // If the out edge ends in any of the region entry addrs which is being 
         // expanded, then both of them are merged.
         if (reg->entry_nodes.count(reg->getNode(tgt_addr))) {

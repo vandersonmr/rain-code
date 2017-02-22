@@ -47,10 +47,7 @@
 #endif
 
 namespace rf_technique {
-  class RF_Technique
-  {
-    unsigned long long system_threshold = 0xB2D05E00; // FIXME
-    bool mix_usr_sys = false;
+  class RF_Technique {
   public:
     virtual void 
       process(unsigned long long cur_addr, char cur_opcode[16], 
@@ -74,21 +71,20 @@ namespace rf_technique {
 
     bool pauseRecording = false;
 
-  protected:
-    bool is_system_instr(unsigned long long addr)
-    {
+    bool is_user_instr(unsigned long long addr) {
       return (addr >= system_threshold);
     }
+  protected:
+    unsigned long long system_threshold = 0xB2D05E00; // FIXME
+    bool mix_usr_sys = false;
 
-    bool switched_mode(rain::Region::Edge* edg)
-    {
+    bool switched_mode(rain::Region::Edge* edg) {
       return switched_mode(edg->src->getAddress(), edg->tgt->getAddress());
     }
 
-    bool switched_mode(unsigned long long src, unsigned long long tgt)
-    {
+    bool switched_mode(unsigned long long src, unsigned long long tgt) {
       //return false;
-      return (is_system_instr(src) != is_system_instr(tgt));
+      return (is_user_instr(src) != is_user_instr(tgt));
     }
 
     bool is_region_addr_space(unsigned long long tgt) {
@@ -99,8 +95,7 @@ namespace rf_technique {
     profiler_t profiler;
     recording_buffer_t recording_buffer;
 
-    rain::Region* buildRegion()
-    {
+    rain::Region* buildRegion() {
       if (recording_buffer.addresses.size() == 0) {
         RF_DBG_MSG("WARNING: buildNETRegion() invoked, but recording_buffer is empty..." << endl);
         return NULL;

@@ -63,6 +63,11 @@ void LEI::formTrace(unsigned long long start, int old) {
     unsigned long long branch_tgt = buf[branch].tgt;
 
     auto it = instructions.find(prev);
+
+    if (!mix_usr_sys)
+      if (switched_mode(branch_src, branch_tgt))
+        goto whileend;
+
     while (it != instructions.getEnd()) {
 
       if (is_region_addr_space(it->first)) {
@@ -90,7 +95,7 @@ void LEI::formTrace(unsigned long long start, int old) {
       }
     }
 
-
+whileend:
     prev = branch_tgt;
     branch += 1;
   }

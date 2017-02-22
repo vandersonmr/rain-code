@@ -161,7 +161,7 @@ void NETPlus::expand(rain::Region* r) {
     unsigned long long addrs = node->getAddress();
 
     if (addrs_space == -1)
-      addrs_space = is_system_instr(addrs);
+      addrs_space = is_user_instr(addrs);
 
     if (r->entry_nodes.count(r->getNode(addrs)) != 0) {
       loop_entries.insert(addrs);
@@ -182,11 +182,15 @@ void NETPlus::expand(rain::Region* r) {
 
       for (auto target : getPossibleNextAddrs(current, instructions.getOpcode(current))) {
         if (parent.count(target) != 0) continue;
+
         parent[target] = current;
         // Iterate over all instructions between the target and the next branch
         auto it = instructions.find(target);
-        while (it != instructions.getEnd()) {
 
+        if (addrs_space != is_user_instr(it->first) && !mix_usr_sys)
+            continue;
+
+        while (it != instructions.getEnd()) {
           if (loop_entries.count(it->first) != 0 && distance[current] > 0) {
             loop_entries.insert(current);
 
@@ -212,7 +216,7 @@ void NETPlus::expand(rain::Region* r) {
             break;
           }
 
-          if (addrs_space != is_system_instr(it->first) || rain.region_entry_nodes.count(it->first) != 0)
+          if (rain.region_entry_nodes.count(it->first) != 0)
             break;
 
           if (isFlowControlInst(it->second) && distance.count(it->first) == 0) {
@@ -290,6 +294,8 @@ void NETPlus::process(unsigned long long cur_addr, char cur_opcode[16], char uns
         Region* r = buildRegion();
         expand(r);
       } else {
+        // Only add a new instruction if it is from the same type 
+        // as the first one in the recording buffer
         if (is_region_addr_space(cur_addr)) {
           // Record target instruction on region formation buffer
           RF_DBG_MSG("Recording " << "0x" << setbase(16) <<

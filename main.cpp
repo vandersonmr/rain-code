@@ -48,7 +48,8 @@ clarg::argString reg_stats_fname("-reg_stats",
 clarg::argString overall_stats_fname("-overall_stats", 
     "file name to dump overall statistics in CSV format", 
     "overall_stats.csv");
-clarg::argBool mix_usr_sys("-mix",  "Allow user and system code in the same NET regions.");
+clarg::argBool mix_usr_sys("-mix",  "Allow user and system code in the same regions.");
+clarg::argBool only_user("-only_user",  "Only allow user code to be emulated.");
 
 #define LINUX_SYS_THRESHOLD   0xB2D05E00         // 3000000000
 #define WINDOWS_SYS_THRESHOLD 0xF9CCD8A1C5080000 // 18000000000000000000 
@@ -237,8 +238,9 @@ int main(int argc,char** argv) {
   while (in.get_next_instruction(next)) {
     // Process the trace
     if (rf)
-      rf->process(current.addr, current.opcode, current.length,
-          next.addr, next.opcode, next.length);
+      if (!only_user.was_set() || rf->is_user_instr(current.addr))
+        rf->process(current.addr, current.opcode, current.length,
+            next.addr, next.opcode, next.length);
     current = next;
   }
   if (rf) rf->finish();
