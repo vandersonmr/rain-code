@@ -222,7 +222,7 @@ namespace rf_technique {
   {
   public:
 
-    LEF() : recording(false), retRegion(true), callRegion(true), last_addr (0)
+    LEF() : recording(false), retRegion(0), callRegion(0), last_addr (0)
     { std::cout << "Initing LEF\n" << std::endl; }
 
     void process(unsigned long long cur_addr, char cur_opcode[16], char unsigned cur_length, 
@@ -241,13 +241,14 @@ namespace rf_technique {
     bool hasComeFromCall(rain::Region*);
     void expandRegion(rain::Region*);
 
-    bool recording, retRegion, callRegion;
+    bool recording;
+    unsigned long long retRegion, callRegion;
     unsigned long long last_addr;
 
     char last_opcode[16];
 
     unordered_map<rain::Region*, set_addr_uptr> reg_out_addrs;
-    unordered_map<rain::Region*, bool> came_from_call;
+    unordered_map<rain::Region*, unsigned long long> came_from_call;
 
     using RF_Technique::buildRegion;
   };

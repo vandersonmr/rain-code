@@ -175,9 +175,9 @@ void Region::moveAndDestroy(Region* reg, unordered_map<unsigned long long, Node*
   for (auto node : reg->nodes) {
       node->region = this;
       // If aready there a node if this address
-      /*if (getNode(node->getAddress()) != nullptr)
+      if (getNode(node->getAddress()) != nullptr)
         translation_table[node] = getNode(node->getAddress());
-      else*/
+      else
         nodes.insert(node);
   }
 
