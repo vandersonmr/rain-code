@@ -203,6 +203,17 @@ int main(int argc,char** argv) {
   if (chosen_technique == "lei" || chosen_technique == "netplus" || chosen_technique == "lefplus") {
     rf_technique::InstructionSet* code_insts = load_binary(bin_path.get_value());
 
+    // If it was not possible to load the binary, we reconstruct it with the traces.
+    if (code_insts->size() == 0) {
+      cout << "It was not possible to load the binary file!\nReconstructing it with traces.\n";
+      trace_io::raw_input_pipe_t in_tmp(trace_path.get_value(), start_i.get_value(), end_i.get_value());
+
+      trace_io::trace_item_t next;
+
+      while (in_tmp.get_next_instruction(next))
+        code_insts->addInstruction(next.addr, next.opcode);
+    }
+
     if (chosen_technique == "netplus") {
       unsigned limit = 10;
       if (depth_limit.was_set()) limit = depth_limit.get_value();
