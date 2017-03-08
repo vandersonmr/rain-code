@@ -2,13 +2,13 @@ digraph G{
 /* nodes */
 /* Start Freq.: 604 */
 /* entry: 0x2a  */
-  n1 [label="0x38"]
-  n2 [label="0x3f"]
-  n3 [label="0x2a"]
-  n4 [label="0x31"]
-  n5 [label="0x33"]
-  n6 [label="0x35"]
-  n7 [label="0x37"]
+  n1 [label="0x2a"]
+  n2 [label="0x31"]
+  n3 [label="0x33"]
+  n4 [label="0x35"]
+  n5 [label="0x37"]
+  n6 [label="0x38"]
+  n7 [label="0x3f"]
   n8 [label="0x41"]
   n9 [label="0x44"]
   na [label="0x75"]
@@ -22,26 +22,26 @@ digraph G{
   n12 [label="0x6e"]
 /* edges */
 n1 -> n2;
-n7 -> n1;
-n2 -> n8;
+na -> n1;
+n0 -> n1;
+n2 -> n3;
 n1 -> n2;
 n3 -> n4;
-na -> n3;
-n0 -> n3;
+n2 -> n3;
 n4 -> n5;
 n3 -> n4;
 n5 -> n6;
 n4 -> n5;
 n6 -> n7;
 n5 -> n6;
-n7 -> n1;
+n7 -> n8;
 n6 -> n7;
 n8 -> n9;
-n2 -> n8;
+n7 -> n8;
 n9 -> nb;
 n8 -> n9;
 na -> n0;
-na -> n3;
+na -> n1;
 n12 -> na;
 nb -> nc;
 n9 -> nb;

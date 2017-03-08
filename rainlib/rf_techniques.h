@@ -71,9 +71,14 @@ namespace rf_technique {
 
     bool pauseRecording = false;
 
-    bool is_user_instr(unsigned long long addr) {
-      return (addr >= system_threshold);
+    static bool is_user_instr(unsigned long long addr, unsigned long long threshold) {
+      return (addr >= threshold);
     }
+
+    bool is_user_instr(unsigned long long addr) {
+      return RF_Technique::is_user_instr(addr, system_threshold);
+    }
+
   protected:
     unsigned long long system_threshold = 0xB2D05E00; // FIXME
     bool mix_usr_sys = false;
@@ -145,8 +150,8 @@ namespace rf_technique {
   {
   public:
 
-    NET() : recording(false), last_addr (0)
-    { std::cout << "Initing NET\n" << std::endl; }
+    NET(unsigned threshold) : recording(false), last_addr (0)
+    { std::cout << "Initing NET\n" << std::endl; profiler.set_hot_threshold(threshold);}
 
     void process(unsigned long long cur_addr, char cur_opcode[16], char unsigned cur_length, 
         unsigned long long nxt_addr, char nxt_opcode[16], char unsigned nxt_length);
@@ -187,9 +192,9 @@ namespace rf_technique {
   {
   public:
 
-    NETPlus(InstructionSet& inst, unsigned limit)
+    NETPlus(InstructionSet& inst, unsigned limit, unsigned threshold)
       : recording(false), last_addr(0), instructions(inst), DEPTH_LIMIT(limit)
-    { std::cout << "Initing NETPlus ("<< DEPTH_LIMIT << ")\n" << std::endl; }
+    { std::cout << "Initing NETPlus ("<< DEPTH_LIMIT << ")\n" << std::endl; profiler.set_hot_threshold(threshold); }
 
     void process(unsigned long long cur_addr, char cur_opcode[16], char unsigned cur_length, 
         unsigned long long nxt_addr, char nxt_opcode[16], char unsigned nxt_length);
@@ -217,8 +222,8 @@ namespace rf_technique {
   {
   public:
 
-    LEF() : recording(false), retRegion(0), callRegion(0), last_addr (0)
-    { std::cout << "Initing LEF\n" << std::endl; }
+    LEF(unsigned threshold) : recording(false), retRegion(0), callRegion(0), last_addr (0)
+    { std::cout << "Initing LEF\n" << std::endl; profiler.set_hot_threshold(threshold); }
 
     void process(unsigned long long cur_addr, char cur_opcode[16], char unsigned cur_length, 
         unsigned long long nxt_addr, char nxt_opcode[16], char unsigned nxt_length);
@@ -257,8 +262,8 @@ namespace rf_technique {
   {
   public:
 
-    LEFPlus(InstructionSet& ins) : recording(false), last_addr (0), instructions(ins)
-    { std::cout << "Initing LEFPlus\n" << std::endl; }
+    LEFPlus(InstructionSet& ins, unsigned threshold) : recording(false), last_addr (0), instructions(ins)
+    { std::cout << "Initing LEFPlus\n" << std::endl; profiler.set_hot_threshold(threshold);}
 
     void process(unsigned long long cur_addr, char cur_opcode[16], char unsigned cur_length, 
         unsigned long long nxt_addr, char nxt_opcode[16], char unsigned nxt_length);
@@ -300,9 +305,9 @@ namespace rf_technique {
   {
   public:
 
-    LEI(InstructionSet& inst)
+    LEI(InstructionSet& inst, unsigned threshold)
       : recording(false), last_addr(0), instructions(inst)
-    { std::cout << "Initing LEI\n" << std::endl; profiler.set_hot_threshold(35); }
+    { std::cout << "Initing LEI\n" << std::endl; profiler.set_hot_threshold(threshold); }
 
     void process(unsigned long long cur_addr, char cur_opcode[16], char unsigned cur_length, 
         unsigned long long nxt_addr, char nxt_opcode[16], char unsigned nxt_length);
@@ -347,8 +352,8 @@ namespace rf_technique {
     #define MAX_INST_REG 1000
 
 
-    MRET2() : recording(false), last_addr(0), stored_index(0)
-    { std::cout << "Initing MRET2\n" << std::endl; }
+    MRET2(unsigned threshold) : recording(false), last_addr(0), stored_index(0)
+    { std::cout << "Initing MRET2\n" << std::endl; profiler.set_hot_threshold(threshold); }
 
     void process(unsigned long long cur_addr, char cur_opcode[16], char unsigned cur_length, 
         unsigned long long nxt_addr, char nxt_opcode[16], char unsigned nxt_length);
@@ -384,8 +389,8 @@ namespace rf_technique {
     #define TREE_SIZE_LIMIT 1000
     #define BACK_BRANCH_LIMIT 8
 
-    TraceTree() : recording(false), last_addr(0), is_side_exit(false)
-    { std::cout << "Initing TraceTree\n" << std::endl; }
+    TraceTree(unsigned threshold) : recording(false), last_addr(0), is_side_exit(false)
+    { std::cout << "Initing TraceTree\n" << std::endl; profiler.set_hot_threshold(threshold); }
 
     void process(unsigned long long cur_addr, char cur_opcode[16], char unsigned cur_length, 
         unsigned long long nxt_addr, char nxt_opcode[16], char unsigned nxt_length);

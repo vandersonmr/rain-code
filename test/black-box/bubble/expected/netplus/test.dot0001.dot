@@ -4,29 +4,29 @@ digraph G{
 /* entry: 0x2a  */
   n1 [label="0x2a"]
   n2 [label="0x31"]
-  n3 [label="0x35"]
-  n4 [label="0x37"]
-  n5 [label="0x38"]
-  n6 [label="0x3f"]
-  n7 [label="0x41"]
-  n8 [label="0x44"]
-  n9 [label="0x4b"]
-  na [label="0x52"]
-  nb [label="0x54"]
-  nc [label="0x5b"]
-  nd [label="0x5f"]
-  ne [label="0x67"]
-  nf [label="0x33"]
+  n3 [label="0x33"]
+  n4 [label="0x35"]
+  n5 [label="0x37"]
+  n6 [label="0x38"]
+  n7 [label="0x3f"]
+  n8 [label="0x41"]
+  n9 [label="0x44"]
+  na [label="0x4b"]
+  nb [label="0x52"]
+  nc [label="0x54"]
+  nd [label="0x5b"]
+  ne [label="0x5f"]
+  nf [label="0x67"]
   n10 [label="0x6e"]
   n11 [label="0x75"]
 /* edges */
 n1 -> n2;
 n11 -> n1;
 n0 -> n1;
-n2 -> nf;
+n2 -> n3;
 n1 -> n2;
 n3 -> n4;
-nf -> n3;
+n2 -> n3;
 n4 -> n5;
 n3 -> n4;
 n5 -> n6;
@@ -47,12 +47,12 @@ nc -> nd;
 nb -> nc;
 nd -> ne;
 nc -> nd;
-ne -> n10;
+ne -> nf;
 nd -> ne;
-nf -> n3;
-n2 -> nf;
+nf -> n10;
+ne -> nf;
 n10 -> n11;
-ne -> n10;
+nf -> n10;
 n11 -> n0;
 n11 -> n1;
 n10 -> n11;

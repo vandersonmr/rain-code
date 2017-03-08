@@ -4,15 +4,15 @@ digraph G{
 /* entry: 0x40  */
   n1 [label="0x40"]
   n2 [label="0x48"]
-  n3 [label="0x67"]
-  n4 [label="0x62"]
+  n3 [label="0x62"]
+  n4 [label="0x67"]
 /* edges */
 n1 -> n2;
 n0 -> n1;
-n2 -> n4;
+n2 -> n3;
 n1 -> n2;
-n3 -> n0;
-n4 -> n3;
-n4 -> n3;
-n2 -> n4;
+n3 -> n4;
+n2 -> n3;
+n4 -> n0;
+n3 -> n4;
 }

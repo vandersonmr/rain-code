@@ -6,43 +6,15 @@ digraph G{
   n2 [label="0x24"]
   n3 [label="0x40"]
   n4 [label="0x45"]
-  n5 [label="0x47"]
-  n6 [label="0x4c"]
-  n7 [label="0x51"]
-  n8 [label="0x53"]
-  n9 [label="0x58"]
-  na [label="0x5d"]
-  nb [label="0x12"]
-  nc [label="0x1a"]
 /* edges */
 n1 -> n2;
 n0 -> n1;
 n0 -> n1;
 n0 -> n1;
-n7 -> n1;
 n2 -> n3;
 n1 -> n2;
 n3 -> n4;
 n2 -> n3;
 n4 -> n0;
-n4 -> n5;
 n3 -> n4;
-n5 -> n6;
-n4 -> n5;
-n6 -> n7;
-nc -> n6;
-n5 -> n6;
-n7 -> n8;
-n7 -> n1;
-n6 -> n7;
-n8 -> n9;
-n7 -> n8;
-n9 -> na;
-n8 -> n9;
-na -> nb;
-n9 -> na;
-nb -> nc;
-na -> nb;
-nc -> n6;
-nb -> nc;
 }

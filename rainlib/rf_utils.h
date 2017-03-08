@@ -115,6 +115,7 @@ namespace rf_technique {
 
     void set_hot_threshold(unsigned threshold) {
       hot_threshold = threshold;
+      std::cout << "Setting hotness threshold to " << threshold << "\n";
     }
 
     unsigned getNumOfCounters() {
@@ -138,10 +139,9 @@ namespace rf_technique {
     void append(unsigned long long addr) { addresses.push_back(addr); }
 
     bool contains_address(unsigned long long addr) {
-      for (auto I : addresses) {
+      for (auto I : addresses)
         if (I == addr)
           return true;
-      }
       return false;
     }
   };

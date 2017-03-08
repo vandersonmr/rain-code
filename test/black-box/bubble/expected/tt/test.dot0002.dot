@@ -3,13 +3,13 @@ digraph G{
 /* Start Freq.: 2692 */
 /* entry: 0x94  */
   n1 [label="0x94"]
-  n2 [label="0x9b"]
-  n3 [label="0x9d"]
-  n4 [label="0xa1"]
-  n5 [label="0xa8"]
-  n6 [label="0xab"]
-  n7 [label="0xad"]
-  n8 [label="0xb1"]
+  n2 [label="0x9d"]
+  n3 [label="0xab"]
+  n4 [label="0xad"]
+  n5 [label="0xb1"]
+  n6 [label="0x9b"]
+  n7 [label="0xa1"]
+  n8 [label="0xa8"]
   n9 [label="0xb3"]
   na [label="0xb5"]
   nb [label="0xbc"]
@@ -43,27 +43,27 @@ digraph G{
   n27 [label="0x10f"]
   n28 [label="0x116"]
 /* edges */
-n1 -> n2;
+n1 -> n6;
 n28 -> n1;
 n1e -> n1;
 n0 -> n1;
-n2 -> n3;
-n1 -> n2;
+n2 -> n7;
+n6 -> n2;
 n3 -> n4;
-n2 -> n3;
+n8 -> n3;
 n4 -> n5;
 n3 -> n4;
-n5 -> n6;
+n5 -> n9;
 n4 -> n5;
-n6 -> n7;
-n5 -> n6;
+n6 -> n2;
+n1 -> n6;
 n7 -> n8;
-n6 -> n7;
-n8 -> n9;
+n2 -> n7;
+n8 -> n3;
 n7 -> n8;
 n9 -> n1a;
 n9 -> na;
-n8 -> n9;
+n5 -> n9;
 na -> nb;
 n9 -> na;
 nb -> nc;

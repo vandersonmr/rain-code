@@ -38,8 +38,9 @@ using namespace ELFIO;
 clarg::argInt    start_i("-s", "start: first file index ", 0);
 clarg::argInt    end_i("-e", "end: last file index", 0);
 clarg::argString trace_path("-b", "input file trace_path", "trace");
+clarg::argInt    rf_threshold("-hot", "technique hot threshold", 50);
 clarg::argString bin_path("-bin", "input binary file path", "");
-clarg::argInt depth_limit("-d", "depth limit for NETPlus", 10);
+clarg::argInt    depth_limit("-d", "depth limit for NETPlus", 10);
 clarg::argString technique("-t", "RF Technique", "net");
 clarg::argBool   help("-h",  "display the help message");
 clarg::argString reg_stats_fname("-reg_stats", 
@@ -167,6 +168,37 @@ rf_technique::InstructionSet* load_binary(string binary_path) {
   return instructions;
 }
 
+rf_technique::RF_Technique* constructRFTechnique(rf_technique::InstructionSet* code_insts, string chosen_technique) {
+  rf_technique::RF_Technique* rf;
+
+  unsigned hotness_threshold = rf_threshold.was_set() ? rf_threshold.get_value() : 50;
+
+  if (chosen_technique == "netplus") {
+    unsigned limit = 10;
+    if (depth_limit.was_set()) 
+      limit = depth_limit.get_value();
+    rf = new rf_technique::NETPlus(*code_insts, limit, hotness_threshold);
+  } else if (chosen_technique == "lei") {
+    if (!rf_threshold.was_set())
+      hotness_threshold = 35;
+    rf = new rf_technique::LEI(*code_insts, hotness_threshold);
+  } else if (chosen_technique == "lefplus"){
+    rf = new rf_technique::LEFPlus(*code_insts, hotness_threshold);
+  } else if (chosen_technique == "mret2") {
+    rf = new rf_technique::MRET2(hotness_threshold);
+  } else if (chosen_technique == "tt") {
+    rf = new rf_technique::TraceTree(hotness_threshold);
+  } else if (chosen_technique == "lef") {
+    rf = new rf_technique::LEF(hotness_threshold);
+  } else if (chosen_technique == "callspage") {
+    rf = new rf_technique::CallsInPage();
+  } else {
+    rf = new rf_technique::NET(hotness_threshold);
+  }
+
+  return rf; 
+}
+
 int main(int argc,char** argv) {
   // Parse the arguments
   if (clarg::parse_arguments(argc, argv)) {
@@ -197,53 +229,40 @@ int main(int argc,char** argv) {
     return 1;
   }
 
-  rf_technique::RF_Technique* rf = NULL;
+  unsigned long long sys_threshold;
+  if (lt.was_set())
+    sys_threshold = LINUX_SYS_THRESHOLD;
+  else
+    sys_threshold = WINDOWS_SYS_THRESHOLD;
+
+  rf_technique::InstructionSet* code_insts = load_binary(bin_path.get_value());
+
   string chosen_technique = technique.get_value();
 
   if (chosen_technique == "lei" || chosen_technique == "netplus" || chosen_technique == "lefplus") {
-    rf_technique::InstructionSet* code_insts = load_binary(bin_path.get_value());
-
-    // If it was not possible to load the binary, we reconstruct it with the traces.
-    if (code_insts->size() == 0) {
+    bool DidNotLoadBinary = (code_insts->size() == 0);
+    if (DidNotLoadBinary)
       cout << "It was not possible to load the binary file!\nReconstructing it with traces.\n";
-      trace_io::raw_input_pipe_t in_tmp(trace_path.get_value(), start_i.get_value(), end_i.get_value());
 
-      trace_io::trace_item_t next;
+    trace_io::raw_input_pipe_t in_tmp(trace_path.get_value(), start_i.get_value(), end_i.get_value());
+    trace_io::trace_item_t next;
 
-      while (in_tmp.get_next_instruction(next))
+    // We need to load the system instructions for netplus, lei and lefplus for every execution, because those aren't
+    // found in the binary. Futhermore, if it was impossible to load the binary, we should load all instructions to
+    // reconstruct it.
+    while (in_tmp.get_next_instruction(next))
+      if (!rf_technique::RF_Technique::is_user_instr(current.addr, sys_threshold)  || DidNotLoadBinary)
         code_insts->addInstruction(next.addr, next.opcode);
-    }
-
-    if (chosen_technique == "netplus") {
-      unsigned limit = 10;
-      if (depth_limit.was_set()) limit = depth_limit.get_value();
-      rf = new rf_technique::NETPlus(*code_insts, limit);
-    } else if (chosen_technique == "lei") {
-      rf = new rf_technique::LEI(*code_insts);
-    } else {
-      rf = new rf_technique::LEFPlus(*code_insts);
-    }
-  } else if (chosen_technique == "mret2") {
-    rf = new rf_technique::MRET2();
-  } else if (chosen_technique == "tt") {
-    rf = new rf_technique::TraceTree();
-  } else if (chosen_technique == "lef") {
-    rf = new rf_technique::LEF();
-  } else if (chosen_technique == "callspage") {
-    rf = new rf_technique::CallsInPage();
-  } else {
-    rf = new rf_technique::NET();
   }
+
+  rf_technique::RF_Technique* rf = constructRFTechnique(code_insts, chosen_technique);
 
   if (mix_usr_sys.was_set())
     rf->set_mix_usr_sys(true);
   else
     rf->set_mix_usr_sys(false);
 
-  if (lt.was_set())
-    rf->set_system_threshold(LINUX_SYS_THRESHOLD);
-  else
-    rf->set_system_threshold(WINDOWS_SYS_THRESHOLD);
+  rf->set_system_threshold(sys_threshold);
 
   // While there are instructions
   while (in.get_next_instruction(next)) {
