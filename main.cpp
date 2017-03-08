@@ -250,9 +250,12 @@ int main(int argc,char** argv) {
     // We need to load the system instructions for netplus, lei and lefplus for every execution, because those aren't
     // found in the binary. Futhermore, if it was impossible to load the binary, we should load all instructions to
     // reconstruct it.
-    while (in_tmp.get_next_instruction(next))
-      if (!rf_technique::RF_Technique::is_user_instr(current.addr, sys_threshold)  || DidNotLoadBinary)
-        code_insts->addInstruction(next.addr, next.opcode);
+
+    if (!only_user.was_set() || DidNotLoadBinary) {
+      while (in_tmp.get_next_instruction(next))
+        if (!rf_technique::RF_Technique::is_user_instr(current.addr, sys_threshold)  || DidNotLoadBinary)
+          code_insts->addInstruction(next.addr, next.opcode);
+    }
   }
 
   rf_technique::RF_Technique* rf = constructRFTechnique(code_insts, chosen_technique);
