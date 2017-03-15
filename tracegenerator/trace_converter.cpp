@@ -21,7 +21,6 @@
 
 #include <unistd.h>
 #include <inttypes.h>
-#include <unicorn/unicorn.h>
 #include <elfio/elfio.hpp>
 
 #include <trace_io.h>

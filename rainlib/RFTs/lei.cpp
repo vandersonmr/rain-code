@@ -126,7 +126,7 @@ void LEI::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
 
   // Profile instructions to detect hot code
   bool profile_target_instr = false;
-  if ((edg->tgt == rain.nte) && abs(cur_addr - last_addr) > last_len) {
+  if ((edg->tgt == rain.nte) && (std::abs((long long int) (cur_addr - last_addr)) > last_len)) {
     // Profile NTE instructions that are target of backward jumps
     profile_target_instr = true;
   }
