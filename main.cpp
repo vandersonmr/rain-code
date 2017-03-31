@@ -190,6 +190,8 @@ rf_technique::RF_Technique* constructRFTechnique(rf_technique::InstructionSet* c
     rf = new rf_technique::TraceTree(hotness_threshold);
   } else if (chosen_technique == "lef") {
     rf = new rf_technique::LEF(hotness_threshold);
+  } else if (chosen_technique == "netj") {
+    rf = new rf_technique::NETJ(hotness_threshold);
   } else if (chosen_technique == "callspage") {
     rf = new rf_technique::CallsInPage();
   } else {
@@ -244,7 +246,7 @@ int main(int argc,char** argv) {
     if (DidNotLoadBinary)
       cout << "It was not possible to load the binary file!\nReconstructing it with traces.\n";
 
-    trace_io::raw_input_pipe_t in_tmp(trace_path.get_value(), start_i.get_value(), end_i.get_value());
+/*    trace_io::raw_input_pipe_t in_tmp(trace_path.get_value(), start_i.get_value(), end_i.get_value());
     trace_io::trace_item_t next;
 
     // We need to load the system instructions for netplus, lei and lefplus for every execution, because those aren't
@@ -255,7 +257,7 @@ int main(int argc,char** argv) {
       while (in_tmp.get_next_instruction(next))
         if (!rf_technique::RF_Technique::is_user_instr(current.addr, sys_threshold)  || DidNotLoadBinary)
           code_insts->addInstruction(next.addr, next.opcode);
-    }
+    }*/
   }
 
   rf_technique::RF_Technique* rf = constructRFTechnique(code_insts, chosen_technique);

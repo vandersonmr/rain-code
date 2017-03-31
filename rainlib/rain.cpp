@@ -535,7 +535,7 @@ void RAIn::printOverallStats(ostream& stats_f) {
   unsigned long long nte_freq = nte->freq_counter;
   unsigned long long total_reg_oficial_exit = 0;
   unsigned long long total_spanned_cycles = 0;
-  map<unsigned long long,unsigned> unique_instrs;
+  unordered_map<unsigned long long,unsigned> unique_instrs;
   unsigned long long _70_cover_set_regs = 0;
   unsigned long long _80_cover_set_regs = 0;
   unsigned long long _90_cover_set_regs = 0;

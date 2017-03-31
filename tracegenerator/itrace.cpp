@@ -1,133 +1,128 @@
-/***************************************************************************
- *   Copyright (C) 2016 by:                                                *
- *   Edson Borin (edson@ic.unicamp.br)                                     *
- *   Vanderson M. Rosario (vandersonmr2@gmail.com)                         *
- *                                                                         *
- *   This program is free software; you can redistribute it and/or modify  *
- *   it under the terms of the GNU General Public License as published by  *
- *   the Free Software Foundation; either version 2 of the License, or     *
- *   (at your option) any later version.                                   *
- *                                                                         *
- *   This program is distributed in the hope that it will be useful,       *
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of        *
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         *
- *   GNU General Public License for more details.                          *
- *                                                                         *
- *   You should have received a copy of the GNU General Public License     *
- *   along with this program; if not, write to the                         *
- *   Free Software Foundation, Inc.,                                       *
- *   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             *
- ***************************************************************************/
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <map>
-#include <list>
-#include <iostream>
-#include <iomanip>
-#include <sstream>
-#include <utility>
-#include <string.h>
 #include "pin.H"
+#include <iostream>
+#include <fstream>
 
-static UINT64 BEGINAT = 1E10;
-static UINT64 RECORDSIZE = 1E5;
-static UINT64 BUFFERSIZE = 100000;
+static UINT64 BEGINAT = 3E9;
+static UINT64 RECORDSIZE = 1E10;
 
 static UINT64 icount = 0;
-static UINT64 rcount = 0;
 static int hasBegin = 0;
-std::stringstream buffer;
 
-/*
- * This is a library to record traces of programs emulated by PIN.
- * The trace is outputed using the raw format and need by converted
- * to be used in RAIn.
- */
+/* ===================================================================== */
+/* Global Variables */
+/* ===================================================================== */
 
-UINT32 Usage() {
-  cout << "This tool produces an instruction stream w/ runtime metadata" << endl;
-  cout << KNOB_BASE::StringKnobSummary();
-  cout << endl;
-  return 2;
+std::ofstream TraceFile;
+UINT32 count_trace = 0; // current trace number
+
+/* ===================================================================== */
+/* Commandline Switches */
+/* ===================================================================== */
+
+KNOB<string> KnobOutputFile(KNOB_MODE_WRITEONCE, "pintool",
+    "o", "trace.out", "specify trace file name");
+KNOB<BOOL>   KnobNoCompress(KNOB_MODE_WRITEONCE, "pintool",
+    "no_compress", "0", "Do not compress");
+
+/* ===================================================================== */
+/* Print Help Message                                                    */
+/* ==============================G======================================= */
+
+INT32 Usage()
+{
+    cerr <<
+        "This tool produces a compressed (dynamic) instruction trace.\n"
+        "The trace is still in textual form but repeated sequences\n"
+        "of the same code are abbreviated with a number which dramatically\n"
+        "reduces the output size and the overhead of the tool.\n"
+        "\n";
+
+    cerr << KNOB_BASE::StringKnobSummary();
+
+    cerr << endl;
+
+    return -1;
 }
 
-VOID PIN_FAST_ANALYSIS_CALL docount(ADDRINT c) { icount += c; }
 
-VOID PIN_FAST_ANALYSIS_CALL LogInstruction(ADDRINT address, const char * disasm, unsigned size) {
-  ++rcount;
-  buffer << "0x" << address << " | "<< disasm << " | " << size << std::endl;
+/* ===================================================================== */
 
-  if (rcount % BUFFERSIZE == 0) {
-    printf("%s", buffer.str().c_str());
-    buffer.str(std::string());
-    fprintf(stderr, "Recorded: %f%%\n", ((double)rcount/RECORDSIZE)*100);
-  }
-
-  if (rcount > RECORDSIZE) {
-    fprintf(stderr, "end of recording\n");
-    exit(0);
-  }
+VOID docount(const string *s, unsigned size)
+{
+    icount += size;
+    if (hasBegin == 0 && icount > BEGINAT) { 
+      cout << "Recording" << endl;
+      hasBegin = 1;
+      icount = 0;
+    } 
+    if (hasBegin == 1) {
+      TraceFile.write(s->c_str(), s->size());
+      if (icount > RECORDSIZE) { 
+        cout << "Stop Recording\n";
+        exit(0);
+      }
+    }
 }
 
-const char *dumpInstruction(INS ins) {
-  ADDRINT address = INS_Address(ins);
-  std::stringstream ss;
-
-  for (size_t i = 0; i < INS_Size(ins); i++)
-    ss << "0x" << setfill('0') << setw(2) << hex << (((unsigned int) *(unsigned char*)(address + i)) & 0xFF) << " ";
-
-  return strdup(ss.str().c_str());
-}
-
-VOID TraceInstructions(INS ins, VOID *arg) {
-  const char * disasm = dumpInstruction(ins);
-
-  INS_InsertCall( ins,
-      IPOINT_BEFORE,
-      (AFUNPTR) LogInstruction,
-      IARG_INST_PTR, // address of instruction
-      IARG_PTR, disasm, // disassembled string
-      IARG_UINT32, INS_Size(ins),
-      IARG_END);
-}
+/* ===================================================================== */
 
 VOID Trace(TRACE trace, VOID *v) {
-  if (!hasBegin) {
-    for (BBL bbl = TRACE_BblHead(trace); BBL_Valid(bbl); bbl = BBL_Next(bbl)) 
-      BBL_InsertCall(bbl, IPOINT_ANYWHERE, AFUNPTR(docount), IARG_FAST_ANALYSIS_CALL,
-          IARG_UINT32, BBL_NumIns(bbl), IARG_END);
+    for (BBL bbl = TRACE_BblHead(trace); BBL_Valid(bbl); bbl = BBL_Next(bbl)) {
+        string traceString = "";
+        
+        for ( INS ins = BBL_InsHead(bbl); INS_Valid(ins); ins = INS_Next(ins)) {
+            traceString += StringDec(INS_Size(ins), 3, '0') + " | "; 
+            traceString += StringFromAddrint(INS_Address(ins)) + " | "; 
+            for (size_t j = 0; j < INS_Size(ins); j++)
+              traceString += StringHex32(((unsigned int) *(unsigned char*)(INS_Address(ins) + j)) & 0xFF, 2, '0') + " ";
+            traceString += "\n";
+        }
 
-    if (icount > BEGINAT) {
-      fprintf(stderr, "Starting recording\n");
-      INS_AddInstrumentFunction(TraceInstructions, 0);
-      hasBegin = 1;
+        // we try to keep the overhead small 
+        // so we only insert a call where control flow may leave the current trace
+        if (KnobNoCompress) {
+            INS_InsertCall(BBL_InsTail(bbl), IPOINT_BEFORE, AFUNPTR(docount),
+                           IARG_PTR, new string(traceString),
+                           IARG_END);
+       } else {
+            // Identify traces with an id
+            count_trace++;
+
+            // Write the actual trace once at instrumentation time
+            string m = "@" + decstr(count_trace) + "\n";
+            TraceFile.write(m.c_str(), m.size());            
+            TraceFile.write(traceString.c_str(), traceString.size());
+            
+            // at run time, just print the id
+            string *s = new string(decstr(count_trace) + "\n");
+            INS_InsertCall(BBL_InsTail(bbl), IPOINT_BEFORE, AFUNPTR(docount),
+                           IARG_PTR, s,
+                           IARG_UINT32, BBL_NumIns(bbl),
+                           IARG_END);
+        }
     }
-  }
 }
 
-int main(int argc, char **argv) {
-  PIN_SetSyntaxXED();
-  PIN_InitSymbols();
+VOID Fini(INT32 code, VOID *v) {
+    TraceFile << "# eof" << endl;
+    
+    TraceFile.close();
+}
 
-  if (PIN_Init(argc, argv)) return Usage();
-  for (int i = 0; i < argc; i++) {
-    if (strcmp(argv[i], "-b") == 0)
-      BEGINAT = strtol(argv[i+1], &argv[i+2]-1, 10);
+int  main(int argc, char *argv[]) {
+    if( PIN_Init(argc,argv) ) {
+        return Usage();
+    }
+    
 
-    else if (strcmp(argv[i], "-s") == 0)
-      RECORDSIZE = strtol(argv[i+1], &argv[i+2]-1, 10);
+    TraceFile.open(KnobOutputFile.Value().c_str());
+        
+    TRACE_AddInstrumentFunction(Trace, 0);
+    PIN_AddFiniFunction(Fini, 0);
 
-    else if (strcmp(argv[i], "-bs") == 0)
-      BUFFERSIZE = strtol(argv[i+1], &argv[i+2]-1, 10);
-  }
+    // Never returns
 
-  fprintf(stderr, "Set starting recording when %lu, ending when %lu and buffer size as %lu\n", 
-      BEGINAT, RECORDSIZE, BUFFERSIZE);
-
-  TRACE_AddInstrumentFunction(Trace, 0);
-
-  PIN_StartProgram();
-
-  return 0;
+    PIN_StartProgram();
+    
+    return 0;
 }

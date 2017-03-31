@@ -23,6 +23,7 @@
 #include <iostream>
 #include "arglib.h"
 #include <algorithm>
+#include <unordered_map>
 
 using namespace rf_technique;
 using namespace rain;
@@ -35,6 +36,10 @@ using namespace rain;
 #endif
 
 void LEI::circularBufferInsert(unsigned long long src, unsigned long long tgt, Region::Edge* e) {
+  if (buf.size() > MAX_SIZE_BUFFER) {
+    buf.clear();
+    buf_hash.clear();
+  }
   buf.push_back({src, tgt, e});
 }
 
@@ -43,7 +48,6 @@ insertNode(rain::Region* r, rain::Region::Node* last_node, unsigned long long ne
   rain::Region::Node* node = new rain::Region::Node(new_addr);
   rain.insertNodeInRegion(node, r);
 
-  //rain.setEntry(node);
   if (!last_node)
     rain.setEntry(node);
   else
@@ -58,56 +62,54 @@ void LEI::formTrace(unsigned long long start, int old) {
   rain::Region* r = nullptr;
   rain::Region::Node* last_node = NULL;
   unsigned branch = old+1;
+  unsigned size = 0;
   while (branch < buf.size()) {
     unsigned long long branch_src = buf[branch].src;
     unsigned long long branch_tgt = buf[branch].tgt;
 
     auto it = instructions.find(prev);
 
-    if (!mix_usr_sys)
-      if (switched_mode(branch_src, branch_tgt))
-        goto whileend;
-
     while (it != instructions.getEnd()) {
-
-      if (is_region_addr_space(it->first)) {
-        if (rain.region_entry_nodes.count(it->first) != 0)
+      if (!switched_mode(start, it->first) || mix_usr_sys) {
+        // Stop if next instruction begins a trace
+        if (it->first != start && rain.region_entry_nodes.count(it->first) != 0) {
+          formTrace(branch_tgt, branch);
           goto exit;
+        }
 
         if (!r)
           r = rain.createRegion();
 
-        last_node = insertNode(r, last_node, it->first);
-        recording_buffer.append(it->first);
+        if (r->getNode(it->first) != nullptr) {
+          last_node = r->getNode(it->first);
+        } else {
+          last_node = insertNode(r, last_node, it->first);
+          size++;
+        }
+
+        if (size > 50) goto exit;
+
+        if (it->first == branch_src)
+          break;
+        ++it;
       }
-
-      if (it->first == branch_src)
-        break;
-
-      ++it;
     }
 
     // Stop if branch forms a cycle
-    if (r) {
-      if (r->getNode(branch_tgt) != nullptr) {
-        rain.setEntry(r->getNode(branch_tgt));
-        break;
-      }
-    }
+    if (r && r->getNode(branch_tgt) != nullptr) 
+      break;
 
-whileend:
     prev = branch_tgt;
     branch += 1;
   }
-
 exit:
   if (last_node)
     rain.setExit(last_node);
 }
 
 bool LEI::is_followed_by_exit(int old) {
-  if (old  >= 0 && buf[old].edge->src->region != NULL)
-      return true;
+  if (old >= 0 && buf[old].edge->src->region != NULL)
+    return true;
   return false;
 }
 
@@ -122,16 +124,7 @@ void LEI::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
   if (!instructions.hasInstruction(cur_addr))
     instructions.addInstruction(cur_addr, cur_opcode);
 
-  RF_DBG_MSG("0x" << setbase(16) << cur_addr << endl);
-
-  // Profile instructions to detect hot code
-  bool profile_target_instr = false;
-  if ((edg->tgt == rain.nte) && (std::abs((long long int) (cur_addr - last_addr)) > last_len)) {
-    // Profile NTE instructions that are target of backward jumps
-    profile_target_instr = true;
-  }
-
-  if (profile_target_instr) {
+  if (edg->tgt == rain.nte && (std::abs((long long int) (cur_addr - last_addr)) > last_len)) {
     unsigned long long src = last_addr;
     unsigned long long tgt = cur_addr;
 
@@ -149,20 +142,23 @@ void LEI::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
 
         // if c = Tcyc
         if (profiler.is_hot(tgt)) {
-          // Start region formation....
-          RF_DBG_MSG("0x" << setbase(16) << cur_addr << " is hot. Start Region formation." << endl);
-
           formTrace(tgt, old);
-          recording_buffer.reset();
 
           // remove all elements of Buf after old
-          for (int branch = old+1; branch < buf.size(); branch++) {
-            buf_hash.erase(buf[branch].tgt);
-            buf.pop_back();
-          }
+          for (int i = old+1; i < buf.size(); i++) 
+            buf_hash.erase(buf[i].tgt);
+          buf.erase(buf.begin()+old+1, buf.end());
 
           // recycle counter associated with tgt
           profiler.reset(tgt);
+
+          // jump newT
+          if (rain.region_entry_nodes.count(cur_addr) != 0) {
+            Region::Edge* edg = rain.queryNext(cur_addr);
+            if (!edg)
+              edg = rain.addNext(cur_addr);
+            rain.executeEdge(edg);
+          }
         }
       }
     } else {

@@ -144,6 +144,11 @@ namespace rf_technique {
           return true;
       return false;
     }
+
+    void backtrack(unsigned long long addrs) {
+      auto I = std::find(addresses.begin(), addresses.end(), addrs);
+      addresses.erase(I, addresses.end());
+    }
   };
 }
 

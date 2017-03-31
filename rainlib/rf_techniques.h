@@ -143,6 +143,27 @@ namespace rf_technique {
   };
 
   /** 
+   * Class to evaluate the Next Executing Tail (NETJ) region formation
+   * technique.
+   */
+  class NETJ : public RF_Technique
+  {
+  public:
+
+    NETJ(unsigned threshold) : recording(false), last_addr (0)
+    { std::cout << "Initing NETJ\n" << std::endl; profiler.set_hot_threshold(threshold);}
+
+    void process(unsigned long long cur_addr, char cur_opcode[16], char unsigned cur_length, 
+        unsigned long long nxt_addr, char nxt_opcode[16], char unsigned nxt_length);
+
+  private:
+    bool recording;
+    unsigned long long last_addr;
+
+    using RF_Technique::buildRegion;
+  };
+
+  /** 
    * Class to evaluate the Next Executing Tail (NET) region formation
    * technique.
    */
@@ -320,8 +341,7 @@ namespace rf_technique {
 
     InstructionSet& instructions;
 
-    #define MAX_SIZE_BUFFER 100000
-    int buf_top = 0;
+    #define MAX_SIZE_BUFFER 2000
 
     struct branch_t {
       unsigned long long src;
@@ -329,11 +349,10 @@ namespace rf_technique {
       rain::Region::Edge* edge;
     };
 
-    rain::Region::Node* insertNode(rain::Region*, rain::Region::Node*, unsigned long long);
+    rain::Region::Node* insertNode(rain::Region*, rain::Region::Node*, unsigned long long); 
 
     std::vector<branch_t> buf;
     unordered_map<unsigned long long, int> buf_hash;
-    unordered_map<unsigned long long, bool> code_cache;
     void circularBufferInsert(unsigned long long, unsigned long long, rain::Region::Edge*);
     bool is_followed_by_exit(int);
     void formTrace(unsigned long long, int);

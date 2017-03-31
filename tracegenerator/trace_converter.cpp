@@ -26,6 +26,8 @@
 #include <trace_io.h>
 #include <fstream>
 #include <sstream>
+#include <unordered_map>
+#include <vector>
 
 #include <string.h>
 #include <stdio.h>
@@ -43,30 +45,73 @@ trace_io::raw_output_pipe_t *out;
  * The raw format:
  *    addrs | opcode | length \n
  */
+unordered_map<unsigned long, vector<trace_io::trace_item_t>> traces;
+
 int main(int argc, char **argv, char **envp) {
-  out = new trace_io::raw_output_pipe_t(string("test"));
-
   string sAddrs, sOpcode, sLength;
-  while (getline(std::cin, sAddrs, '|')) {
-    trace_io::trace_item_t t;
+  int k = 0;
+  unsigned long long processedInstructions = 1;
+  while (true) {
+out:
+    std::cout << "Creating out" << k << "\n";
+    out = new trace_io::raw_output_pipe_t(string("out.")+std::to_string(k++));
+    string line;
+    int tracecounter = 0;
+    while (getline(std::cin, line)) {
+      if (line[0] == '@') { 
+        std::istringstream iss(line);
+        char trash;
+        iss >> trash >> tracecounter;
+        traces[tracecounter];
+      } else if (line[0] == '0') {
+        std::istringstream iss(line);
 
-    getline(std::cin, sOpcode, '|');
-    getline(std::cin, sLength);
+        trace_io::trace_item_t t;
+        t.type = 2;
 
-    istringstream isAddrs(sAddrs);
-    istringstream isOpcode(sOpcode);
-    istringstream isLength(sLength);
+        getline(iss, sLength, '|');
+        istringstream isLength(sLength);
+        isLength >> t.length;
+        if (t.length == 0) {
+          std::cout << "Empty length " << tracecounter << std::endl;
+          return 1;
+        }
 
-    t.type = 2;
-    isAddrs >> hex >> t.addr;
-    int i = 0;
-    unsigned tmp;
-    while (isOpcode >> hex >> tmp) t.opcode[i++] = tmp;
-    isLength >> t.length;
+        getline(iss, sAddrs, '|');
+        istringstream isAddrs(sAddrs);
+        isAddrs >> hex >> t.addr;
+        if (t.addr == 0) {
+          t.addr = 1;
+          std::cout << "Warning: more than one address "<< tracecounter << "\n";
+        }
 
-    out->write_trace_item(t);
+        getline(iss, sOpcode, '\n');
+        istringstream isOpcode(sOpcode);
+        int i = 0;
+        unsigned tmp;
+        while (isOpcode >> hex >> tmp) t.opcode[i++] = tmp;
+
+        traces[tracecounter].push_back(t);
+      } else {
+        istringstream traceNum(line);
+        unsigned long traceId;
+        traceNum >> traceId;
+        for (auto ins : traces[traceId]) {
+          processedInstructions++;
+          out->write_trace_item(ins);
+        }
+        if ((processedInstructions % 1000000) == 0) {
+          float p = (((float)processedInstructions / 1E10)*100); 
+          std::cout << p << "%" << k << std::endl;
+          if (p >= k) {
+            std::cout << "Finished out."<< k << "\n";
+            delete out;
+            goto out;
+          }
+        }
+      }
+    }
   }
 
-  delete out;
   return 0;
 }

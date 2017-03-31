@@ -33,7 +33,8 @@ using namespace rain;
 #define DBG_ASSERT(cond)
 #endif
 
-void NET::process(unsigned long long cur_addr, char cur_opcode[16], char unsigned cur_length, 
+int counter = 0;
+void NETJ::process(unsigned long long cur_addr, char cur_opcode[16], char unsigned cur_length, 
     unsigned long long nxt_addr, char nxt_opcode[16], char unsigned nxt_length) {
   // Execute TEA transition.
   Region::Edge* edg = rain.queryNext(cur_addr);
@@ -48,7 +49,7 @@ void NET::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
   if ((edg->src->region != NULL) && edg->tgt == rain.nte) {
     // Exits from previously selected hot traces are treated as start-of-trace points
     profile_target_instr = true;
-  } if ((edg == rain.nte_loop_edge) && (cur_addr < last_addr)) {
+  } else if ((edg == rain.nte_loop_edge) && (cur_addr < last_addr)) {
     // Profile NTE instructions that are target of backward jumps
     profile_target_instr = true;
   }
@@ -66,15 +67,17 @@ void NET::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
   if (recording) {
     // Check for stop conditions.
     // DBG_ASSERT(edg->src == rain.nte);
+    
     bool stopRecording = false;
-    if (edg->tgt != rain.nte) {
-      // Found region entry
-      RF_DBG_MSG("Stopped recording because found a region entry." << endl);
+    counter++;
+    if (counter > 50) {
       stopRecording = true;
-    } else if (recording_buffer.addresses.size() > MAX_INST_REG) {
-      stopRecording = true;
-    } else if (recording_buffer.addresses.size() > 1 && cur_addr < last_addr) {
-      stopRecording = true;
+      counter = 0;
+    } else if (recording_buffer.contains_address(cur_addr)) {
+      if (recording_buffer.addresses[0] == cur_addr) 
+        stopRecording = true;
+      else 
+        recording_buffer.backtrack(cur_addr);
     }
 
     if (stopRecording) {
