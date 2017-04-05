@@ -374,6 +374,11 @@ void RAIn::executeEdge(Region::Edge* edge) {
   cur_node->freq_counter++;
   executed_freq++;
 
+  if (cur_node->region != 0) { 
+    if (cur_node->region->isFromExpansion)
+      executed_expasion_freq++;
+  }
+
   if (edge->src->region != 0 && edge->tgt->region != 0) {
     Region* src_reg = edge->src->region;
     Region* tgt_reg = edge->tgt->region;
@@ -655,6 +660,8 @@ void RAIn::printOverallStats(ostream& stats_f) {
     << "," << "minumun number of static instructions on regions to cover 80% of dynamic execution" << "\n";
   stats_f << "90_cover_set_instrs" << "," << _90_cover_set_instrs
     << "," << "minumun number of static instructions on regions to cover 90% of dynamic execution" << "\n";
+
+  stats_f << "executed_expasion_freq" << "," << executed_expasion_freq << "," << "Total Exec. Freq. From Expanded Regs.\n";
 }
 
 void RAIn::printRegionDOT(Region* region, ostream& reg) {

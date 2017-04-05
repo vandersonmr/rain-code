@@ -111,9 +111,10 @@ namespace rain {
 
   public:
 
+    bool isFromExpansion;
     bool alive; // if false, the region has been deleted
 
-    Region() : reg_out_edges(NULL), reg_in_edges(NULL), alive(true) {}
+    Region() : reg_out_edges(NULL), reg_in_edges(NULL), alive(true), isFromExpansion(false) {}
     ~Region();
 
     unsigned long long allNodesFreq() const;
@@ -195,6 +196,7 @@ namespace rain {
     unsigned region_transitions = 0;
     unsigned number_of_counters = 0;
     unsigned long long executed_freq = 0;
+    unsigned long long executed_expasion_freq = 0;
   public:
 
     /** Map region identifiers to regions. */

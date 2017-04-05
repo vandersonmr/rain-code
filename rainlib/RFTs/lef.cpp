@@ -58,14 +58,15 @@ void LEF::updateOutAddrs(rain::Region* reg, pair_addr e) { // edge == pair<ull, 
 
 void LEF::
 mergeRegions(rain::Region* src_reg, unsigned long long src_addr, rain::Region* tgt_reg, unsigned long long tgt_addr) {
-    src_reg->exit_nodes.clear();
-    for (auto r : tgt_reg->entry_nodes)
-      rain.region_entry_nodes.erase(r->getAddress());
-    tgt_reg->entry_nodes.clear();
+  src_reg->exit_nodes.clear();
+  for (auto r : tgt_reg->entry_nodes)
+    rain.region_entry_nodes.erase(r->getAddress());
+  tgt_reg->entry_nodes.clear();
 
-    tgt_reg->moveAndDestroy(src_reg, rain.region_entry_nodes);
-    src_reg->alive = false;
-    rain.regions.erase(src_reg->id);
+  tgt_reg->moveAndDestroy(src_reg, rain.region_entry_nodes);
+  tgt_reg->isFromExpansion = true;
+  src_reg->alive = false;
+  rain.regions.erase(src_reg->id);
 }
 
 bool LEF::hasComeFromCall(rain::Region* reg) {

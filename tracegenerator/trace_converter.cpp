@@ -53,6 +53,7 @@ int main(int argc, char **argv, char **envp) {
   unsigned long long processedInstructions = 1;
   while (true) {
 out:
+    if (k >= 100) break;
     std::cout << "Creating out" << k << "\n";
     out = new trace_io::raw_output_pipe_t(string("out.")+std::to_string(k++));
     string line;
@@ -111,6 +112,8 @@ out:
         }
       }
     }
+    delete out;
+    break;
   }
 
   return 0;

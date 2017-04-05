@@ -1,6 +1,7 @@
 /***************************************************************************
  *   Copyright (C) 2013 by:                                                *
  *   - Edson Borin (edson@ic.unicamp.br)                                   *
+ *   - Vanderson Rosario (vandersonmr2@gmail.com)                          *
  *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
  *   it under the terms of the GNU General Public License as published by  *
@@ -69,8 +70,7 @@ namespace trace_io {
     virtual void write_trace_item(trace_item_t& item) = 0;
   };
 
-  class raw_input_pipe_t : public input_pipe_t 
-  {
+  class raw_input_pipe_t : public input_pipe_t {
   public:
 
     /** Constructor */

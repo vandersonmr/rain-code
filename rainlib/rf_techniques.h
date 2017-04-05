@@ -72,7 +72,7 @@ namespace rf_technique {
     bool pauseRecording = false;
 
     static bool is_user_instr(unsigned long long addr, unsigned long long threshold) {
-      return (addr >= threshold);
+      return (addr < threshold);
     }
 
     bool is_user_instr(unsigned long long addr) {

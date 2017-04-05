@@ -3,26 +3,31 @@
 library("ggplot2")
 source("graphutils.R")
 
-
-data <- loadTable("tableonlyuser.csv")
+data <- loadTable("tableonlyuser2.csv")
 nData <- normalize(data, "net50")
 fData <- filterRFT(nData, c("net50", "lei35", "tt"))
 fData <- sortByBenchmark(fData)
 sData <- sortByRFT(fData, c("net100", "mret50", "mret25", "lei35", "netplus", "lef50", "tt"))
 
 genAndSaveAllGraphs(sData, "all", function(data, column) 
-  genGraph(data, X = data$V1, Y = data[,column], FILL = data$V2, "Benchmarks", getColumnName(column), TRUE)
+  genBarGraph(data, X = data$V1, Y = data[,column], FILL = data$V2, "Benchmarks", getColumnName(column), TRUE)
 )
 
-groupedsysmark <- groupByBench(sData, isFromBench(sData, c("IE", "finereader", "word", "powerpoint")), geo_mean)
-groupedspec    <- groupByBench(sData, !isFromBench(sData, c("IE", "finereader", "word", "powerpoint")), geo_mean)
+genAndSaveAllGraphs(sData, "point", function(data, columnX, columnY) 
+  genPointGraph(data, X = data[, columnX], Y = data[, columnY], FILL = data$V2, getColumnName(columnX), getColumnName(columnY))
+, TRUE)
 
-groupedspec$type    <- "spec"
-groupedsysmark$type <- "sysmark"
+groupedsysmark <- groupByBench(sData, isFromBench(sData, 
+            c("IE", "finereader", "word", "powerpoint", "gedit", "gnumeric", "gnome-weather", "gimp")), geo_mean)
+groupedspec    <- groupByBench(sData, !isFromBench(sData, 
+            c("IE", "finereader", "word", "powerpoint", "gedit", "gnumeric", "gnome-weather", "gimp")), geo_mean)
+
+groupedspec$type    <- "SPEC"
+groupedsysmark$type <- "Desktop Apps"
 grouped <- rbind(groupedspec, groupedsysmark)
 
-genAndSaveAllGraphs(grouped, "group", function(data, column, name) 
-  genGraph(data, X = data$type, Y = data[, column+1], FILL = data$Group.1, "Benchmarks", getColumnName(column), TRUE, FALSE, FALSE)
+genAndSaveAllGraphs(grouped, "group", function(data, column) 
+  genBarGraph(data, X = data$type, Y = data[, column+1], FILL = data$Group.1, "Benchmarks", getColumnName(column), TRUE, FALSE, FALSE)
 )
 
 ##d <- read.table("hist", stringsAsFactors = FALSE)

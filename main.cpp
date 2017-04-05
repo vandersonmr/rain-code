@@ -126,7 +126,7 @@ int validate_arguments() {
   }
 
   string chosen_technique = technique.get_value();
-  if (chosen_technique == "lei" || chosen_technique == "netplus" || chosen_technique == "lefplus") {
+  if (chosen_technique == "lei" || chosen_technique == "netplus") {
     if (!bin_path.was_set()) {
       cerr << "Error: you must provide a binary file path with -bin.\n" 
         << "(use -h for help)\n";
@@ -182,16 +182,12 @@ rf_technique::RF_Technique* constructRFTechnique(rf_technique::InstructionSet* c
     if (!rf_threshold.was_set())
       hotness_threshold = 35;
     rf = new rf_technique::LEI(*code_insts, hotness_threshold);
-  } else if (chosen_technique == "lefplus"){
-    rf = new rf_technique::LEFPlus(*code_insts, hotness_threshold);
   } else if (chosen_technique == "mret2") {
     rf = new rf_technique::MRET2(hotness_threshold);
   } else if (chosen_technique == "tt") {
     rf = new rf_technique::TraceTree(hotness_threshold);
   } else if (chosen_technique == "lef") {
     rf = new rf_technique::LEF(hotness_threshold);
-  } else if (chosen_technique == "netj") {
-    rf = new rf_technique::NETJ(hotness_threshold);
   } else if (chosen_technique == "callspage") {
     rf = new rf_technique::CallsInPage();
   } else {
@@ -241,7 +237,7 @@ int main(int argc,char** argv) {
 
   string chosen_technique = technique.get_value();
 
-  if (chosen_technique == "lei" || chosen_technique == "netplus" || chosen_technique == "lefplus") {
+  if (chosen_technique == "lei" || chosen_technique == "netplus") {
     bool DidNotLoadBinary = (code_insts->size() == 0);
     if (DidNotLoadBinary)
       cout << "It was not possible to load the binary file!\nReconstructing it with traces.\n";
@@ -249,7 +245,7 @@ int main(int argc,char** argv) {
 /*    trace_io::raw_input_pipe_t in_tmp(trace_path.get_value(), start_i.get_value(), end_i.get_value());
     trace_io::trace_item_t next;
 
-    // We need to load the system instructions for netplus, lei and lefplus for every execution, because those aren't
+    // We need to load the system instructions for netplus and lei for every execution, because those aren't
     // found in the binary. Futhermore, if it was impossible to load the binary, we should load all instructions to
     // reconstruct it.
 
