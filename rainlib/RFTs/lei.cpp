@@ -43,15 +43,19 @@ void LEI::circularBufferInsert(unsigned long long src, unsigned long long tgt, R
   buf.push_back({src, tgt, e});
 }
 
-rain::Region::Node* LEI::
-insertNode(rain::Region* r, rain::Region::Node* last_node, unsigned long long new_addr) {
-  rain::Region::Node* node = new rain::Region::Node(new_addr);
-  rain.insertNodeInRegion(node, r);
-
-  if (!last_node)
+rain::Region::Node* LEI::insertNode(rain::Region* r, rain::Region::Node* last_node, unsigned long long new_addr) {
+  rain::Region::Node* node = r->getNode(new_addr);
+  if (node == nullptr) {
+    node = new rain::Region::Node(new_addr);
+    rain.insertNodeInRegion(node, r);
+  }
+  
+  if (!last_node) {
     rain.setEntry(node);
-  else
-    r->createInnerRegionEdge(last_node, node);
+  } else {
+    if (last_node->findOutEdge(new_addr) == nullptr)
+      r->createInnerRegionEdge(last_node, node);
+  }
 
   return node;
 }
@@ -86,8 +90,6 @@ void LEI::formTrace(unsigned long long start, int old) {
           last_node = insertNode(r, last_node, it->first);
           size++;
         }
-
-        if (size > 50) goto exit;
 
         if (it->first == branch_src)
           break;

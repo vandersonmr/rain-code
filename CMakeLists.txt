@@ -22,7 +22,8 @@ cmake_minimum_required (VERSION 2.6)
 
 project (RAIn)
 
-set(CMAKE_CXX_FLAGS "-std=c++11 -g -Ofast")
+set(CMAKE_CXX_FLAGS "-Ofast -Werror -std=c++17 -fno-rtti -flto")
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -O3 -flto")
 
 # Add libraries
 add_subdirectory(arglib)

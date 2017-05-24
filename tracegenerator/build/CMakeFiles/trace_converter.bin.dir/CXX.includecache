@@ -1,0 +1,30 @@
+#IncludeRegexLine: ^[ 	]*#[ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/vanderson/dev/mestrado/rain-code/tracegenerator/trace_converter.cpp
+unistd.h
+-
+inttypes.h
+-
+elfio/elfio.hpp
+-
+trace_io.h
+-
+fstream
+-
+sstream
+-
+unordered_map
+-
+vector
+-
+string.h
+-
+stdio.h
+-
+

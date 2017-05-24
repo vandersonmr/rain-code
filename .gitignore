@@ -1,7 +1,4 @@
-test/zinsly-binaries
-test/zinsly-experiments
-test/black-box/real
-test/black-box/*/results
+test/*
 *.swp
 results/*
 build/*

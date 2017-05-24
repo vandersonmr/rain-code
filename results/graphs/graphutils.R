@@ -3,13 +3,13 @@
 library("ggplot2")
 library("hashmap")
 
-lines <- c(7,9,10,11,12,13,14,16,17,18,19,20,26,27)
+lines <- c(7,9,10,11,12,13,14,16,17,18,19,21,26,27,28)
 names <- c("Total of Regions", "Avg. Dynamic Region Size",
            "Avg. Static Region Size", "Dynamic Region Coverage",
            "Region Code Duplication", "Completion Ratio",
            "Number of Compilations", "Number of Regions Transitions",
            "Number of Used Counters", "Spanned Cycle Ratio", 
-           "Spanned Execution Ratio", "70% Cover Set",
+           "Spanned Execution Ratio", "70% Cover Set", "Expasion Exec. Freq",
            "Cold Regions (<1000)", "Cold Regions (Avg. < 200)")
 h <- hashmap(lines, names)
 
@@ -19,14 +19,15 @@ getColumnName <- function(column) {
 
 loadTable <- function(PATH) {
   data <- read.table(PATH, stringsAsFactors = FALSE)
-  data$V14 = data$V14
+  data$V14 <- data$V14 + data$V7;
+  data[data$V2 == "lei",]$V10 <- data[data$V2 == "lei",]$V10;
+  data[data$V2 == "net50",]$V26 <- data[data$V2 == "net50",]$V3;
   return(data)
 }
 
 normalize <- function(data, TECH) {
-  for (i in 3:27) {
+  for (i in 3:28) 
     data[,i] = mapply(function(a, c) { c / data[data$V1 == a & data$V2 == TECH, ][,i]  },  data$V1, data[,i]) 
-  }
   return(data)
 }
 
@@ -61,7 +62,7 @@ sortByRFT <- function(data, RFTSORDER) {
 
 genBarGraph <- function(data,X, Y, FILL, XLAB, YLAB, HLINE, VLINE = TRUE, ANNOT = TRUE) {
   p <- ggplot(data, aes(X, Y)) + geom_bar(aes(fill = FILL), position = "dodge", stat="identity") + 
-    theme(text = element_text(size=20), axis.text.x = element_text(angle=30, hjust=1)) + xlab(XLAB) + ylab(YLAB)
+    theme(text = element_text(size=25), axis.text.x = element_text(angle=30, hjust=1)) + xlab(XLAB) + ylab(YLAB)
 
   if (ANNOT)
     p <- p + annotate("text", x = 1.5, y = max(Y), label = "SPEC") + 
@@ -77,26 +78,29 @@ genBarGraph <- function(data,X, Y, FILL, XLAB, YLAB, HLINE, VLINE = TRUE, ANNOT 
 }
 
 genPointGraph <- function(data,X, Y, FILL, XLAB, YLAB) {
-  p <- ggplot(data, aes(X, Y)) + geom_point(aes(colour = FILL, shape = FILL), size=6) + 
-    theme(text = element_text(size=20)) + xlab(XLAB) + ylab(YLAB)
+  p <- ggplot(data, aes(X, Y)) + geom_point(aes(colour = data$type, shape = FILL), size=6) + 
+    theme(text = element_text(size=25)) + xlab(XLAB) + ylab(YLAB)
   return(p)
 }
 
 genAndSaveAllGraphs <- function(data, PREFIX, GENFUNC, POINT=FALSE) {
   if (POINT) {
-    set = c(9,10,12,13,14,16,17,19,27);
-    for (i in set) {
-      for (j in set) {
+    for (i in lines) {
+      for (j in lines) {
         if (j > i) {
-          p <- GENFUNC(data, i, j)
-          ggsave(paste(PREFIX,i,"x",j,".png", sep=""), p, width = 10, height = 10)
+          if (!is.na(data[1,i]) & !is.na(data[1,j])) {
+            #if (abs(cor(data[,i], data[,j])) > 0.1) {
+              p <- GENFUNC(data, i, j)
+              ggsave(paste(PREFIX,i,"x",j,".pdf", sep=""), p, width = 14, height = 9)
+            #}
+          }
         }
       }
     }
   } else {
     for (i in lines) {
       p <- GENFUNC(data, i)
-      ggsave(paste(PREFIX, i, ".png", sep=""), p, width = 16, height = 7)
+      ggsave(paste(PREFIX, i, ".pdf", sep=""), p, width = 16, height = 8)
     }
   }
 }

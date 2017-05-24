@@ -110,22 +110,23 @@ namespace rf_technique {
       rain::Region::Node* last_node = NULL;
 
       for (auto addr : recording_buffer.addresses) {
-
-        rain::Region::Node* node = new rain::Region::Node(addr);
-        rain.insertNodeInRegion(node, r);
+        rain::Region::Node* node = r->getNode(addr);
+        if (node == nullptr) { 
+          node = new rain::Region::Node(addr);
+          rain.insertNodeInRegion(node, r);
+        }
 
         if (!last_node) {
           // First node
         #ifdef DEBUG
           // Make sure there were no region associated with the entry address.
-          assert(rain.region_entry_nodes.find(node->getAddress()) ==
-              rain.region_entry_nodes.end());
+          assert(rain.region_entry_nodes.find(node->getAddress()) == rain.region_entry_nodes.end());
         #endif
           rain.setEntry(node);
-        }
-        else {
+        } else {
           // Successive nodes
-          r->createInnerRegionEdge(last_node, node);
+          if (last_node->findOutEdge(addr) == nullptr)
+            r->createInnerRegionEdge(last_node, node);
         }
 
         last_node = node;
@@ -134,12 +135,10 @@ namespace rf_technique {
         rain.setExit(last_node);
       }
 
-      RF_DBG_MSG("Region " << r->id << " created. # nodes = " <<
-          r->nodes.size() << endl);
+      RF_DBG_MSG("Region " << r->id << " created. # nodes = " << r->nodes.size() << endl);
 
       return r;
     }
-
   };
 
   /** 

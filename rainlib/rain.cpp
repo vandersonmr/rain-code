@@ -32,7 +32,7 @@
 using namespace std;
 using namespace rain;
 
-#define DEBUG
+//#define DEBUG
 
 #ifdef DEBUG
 #include <assert.h>
@@ -238,18 +238,6 @@ void Region::moveAndDestroy(Region* reg, unordered_map<unsigned long long, Node*
   //delete reg;
 }
 
-unsigned Region::getNumberOfSideEntries() {
-  unsigned amount = 0;
-  for (auto node : entry_nodes) {
-      auto it = node->in_edges;
-      while (it != NULL) {
-        if (node->region->isInnerEdge(it->edge)) amount++;
-        it = it->next;
-      }
-  }
-  return amount;
-}
-
 Region::Node* Region::getNode(unsigned long long addr) {
   for (auto n : nodes)
     if (n->getAddress() == addr) return n;
@@ -336,8 +324,7 @@ Region::Edge* RAIn::addNext(unsigned long long next_ip) {
 
   if (cur_node == nte) {
     if (next_node == NULL) {
-      cerr << "Error, addNext should be not called when "
-        << "queryNext returns a valid edge." << "\n";
+      cerr << "Error, addNext should be not called when queryNext returns a valid edge." << "\n";
       exit (1);
     } else {
       // Add edge from nte to region entry.
@@ -358,7 +345,11 @@ Region::Edge* RAIn::addNext(unsigned long long next_ip) {
       }
     } else {
       // add edge from cur_node to region_entry (link regions)
-      edg = createInterRegionEdge(cur_node, next_node);
+      if (cur_node->region == next_node->region) {
+        edg = cur_node->region->createInnerRegionEdge(cur_node, next_node);
+      } else {
+        edg = createInterRegionEdge(cur_node, next_node);
+      }
     }
   }
 
@@ -536,7 +527,6 @@ void RAIn::printOverallStats(ostream& stats_f) {
   unsigned long long total_reg_external_entries = 0;
   unsigned long long total_reg_main_exits = 0;
   unsigned long long total_reg_freq = 0;
-  unsigned long long total_side_entries = 0;
   unsigned long long nte_freq = nte->freq_counter;
   unsigned long long total_reg_oficial_exit = 0;
   unsigned long long total_spanned_cycles = 0;
@@ -551,9 +541,6 @@ void RAIn::printOverallStats(ostream& stats_f) {
   vector< pair<Region*,unsigned long long> > region_cov;
   for (auto rit : regions) {
     Region* r = rit.second;
-
-    if (!r->alive) continue;
-    total_side_entries += r->getNumberOfSideEntries();
 
     assert(r != nullptr && "Region is null in printOverallStats");
     total_reg += 1;
@@ -621,9 +608,7 @@ void RAIn::printOverallStats(ostream& stats_f) {
     << "," << "Average dynamic region size." << "\n";
 
   assert(total_reg != 0 && "region.size() is 0 and it's dividing");
-  stats_f << "avg_stat_reg_size" << "," <<
-    (double) total_stat_reg_size / (double) total_reg
-    << "," << "Average static region size." << "\n";
+  stats_f << "avg_stat_reg_size" << "," << (double) total_stat_reg_size / (double) total_reg << "," << "Average static region size." << "\n";
 
   stats_f << "dyn_reg_coverage" << "," << 
     (double) total_reg_freq / (double) (total_reg_freq + nte_freq)
@@ -638,7 +623,6 @@ void RAIn::printOverallStats(ostream& stats_f) {
     << "," << "Completion Ratio" << "\n";
 
   stats_f << "num_expasions" << "," << expansions << "," << "Number of Expansions" << "\n";
-  stats_f << "side_entries" << "," << total_side_entries/ (double) total_reg << "," << "Side Entries" << "\n";
   stats_f << "region_transitions" << "," << region_transitions << ","
     << "Number of regions transitions" << "\n";
   stats_f << "num_counters" << "," << number_of_counters << ","

@@ -133,7 +133,7 @@ namespace rain {
     { entry_nodes.insert(node); }
 
     void setExitNode(Node* node)
-    {exit_nodes.insert(node);}
+    { exit_nodes.insert(node);}
 
     Edge* createInnerRegionEdge(Node* src, Node* tgt);
 

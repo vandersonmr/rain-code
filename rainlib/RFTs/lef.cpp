@@ -58,15 +58,18 @@ void LEF::updateOutAddrs(rain::Region* reg, pair_addr e) { // edge == pair<ull, 
 
 void LEF::
 mergeRegions(rain::Region* src_reg, unsigned long long src_addr, rain::Region* tgt_reg, unsigned long long tgt_addr) {
-  src_reg->exit_nodes.clear();
-  for (auto r : tgt_reg->entry_nodes)
-    rain.region_entry_nodes.erase(r->getAddress());
-  tgt_reg->entry_nodes.clear();
+  for (auto src_node : src_reg->nodes) {
+      rain::Region::Node* node = tgt_reg->getNode(src_node->getAddress());
+      if (node == nullptr) {
+        node = new rain::Region::Node(src_node->getAddress());
+        rain.insertNodeInRegion(node, tgt_reg);
+      }
+  }
 
-  tgt_reg->moveAndDestroy(src_reg, rain.region_entry_nodes);
+  //tgt_reg->moveAndDestroy(src_reg, rain.region_entry_nodes);
   tgt_reg->isFromExpansion = true;
   src_reg->alive = false;
-  rain.regions.erase(src_reg->id);
+  //rain.regions.erase(src_reg->id);
 }
 
 bool LEF::hasComeFromCall(rain::Region* reg) {
@@ -103,28 +106,14 @@ void LEF::expandRegion(rain::Region* reg) {
 
           mergeRegions(src_reg, src_addr, tgt_reg, tgt_addr);
 
-          // Check if all inner loops are correctly seted
-          for (auto node : reg->nodes) {
-            for (auto edge = node->in_edges; edge != NULL; edge = edge->next) {
-              Region::Edge* ed = edge->edge;
-
-              if (ed->src->region == ed->tgt->region && ed->src->region != NULL) {
-                Region* r = ed->src->region;
-                r->region_inner_edges.insert(ed);
-
-                if (r->entry_nodes.count(ed->tgt) != 0) {
-                  r->entry_nodes.erase(ed->tgt);
-                  rain.region_entry_nodes.erase(ed->tgt->getAddress());
-                }
-              }
-            }
-          }
-
           newNeighbors = true;
 
           if (hasComeFromCall(src_reg)) {
+            tgt_reg->entry_nodes.clear();
             if (reg->getNode(came_from_call[src_reg]) != NULL)
               reg->setEntryNode(reg->getNode(came_from_call[src_reg]));
+            else 
+              std::cout << "How the hell this is fucking happening!?\n";
             goto exit;
           }
         }
@@ -133,6 +122,7 @@ void LEF::expandRegion(rain::Region* reg) {
   }
 
   exit:
+  std::cout << "Trying to expand! " << reg->entry_nodes.size() << "\n";
   rain.countExpansion();
 }
 
@@ -176,6 +166,8 @@ void LEF::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
       // Found region entry
       RF_DBG_MSG("Stopped recording because found a region entry." << endl);
       stopRecording = true;
+      if (isCallInst(last_opcode)) 
+        came_from_call[edg->tgt->region] = cur_addr;
     } else if (recording_buffer.addresses.size() > MAX_INST_REG) {
       stopRecording = true;
     } else if (recording_buffer.addresses.size() > 1 && cur_addr < last_addr) {
@@ -185,9 +177,13 @@ void LEF::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
     if (isRetInst(cur_opcode))
       retRegion = cur_addr;
 
-    if (recording_buffer.addresses.size() == 0)
+    if (recording_buffer.addresses.size() == 0) {
       if (isCallInst(last_opcode))
         callRegion = cur_addr;
+    } else {
+      if (isCallInst(last_opcode) && !stopRecording) 
+        callRegion = cur_addr;
+    }
 
     if (stopRecording) {
       // Create region and add to RAIn TEA
@@ -197,7 +193,7 @@ void LEF::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
       rain::Region* r = buildRegion();
       if (r != nullptr) {
         if (callRegion != 0)
-          came_from_call[r] = callRegion;
+          came_from_call[r] = (*(r->entry_nodes.begin()))->getAddress();
 
         if (retRegion != 0) {
           expandRegion(r);
@@ -219,3 +215,7 @@ void LEF::process(unsigned long long cur_addr, char cur_opcode[16], char unsigne
   strncpy(last_opcode, cur_opcode, 16);
   last_addr = cur_addr;
 }
+
+/* */
+
+

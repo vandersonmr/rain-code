@@ -3,31 +3,35 @@
 library("ggplot2")
 source("graphutils.R")
 
-data <- loadTable("tableonlyuser2.csv")
-nData <- normalize(data, "net50")
-fData <- filterRFT(nData, c("net50", "lei35", "tt"))
-fData <- sortByBenchmark(fData)
-sData <- sortByRFT(fData, c("net100", "mret50", "mret25", "lei35", "netplus", "lef50", "tt"))
+data <- loadTable("tableonlyuser4.csv")
+data <- sortByBenchmark(data)
+data <- normalize(data, "net50")
+#data <- filterRFT(data, c("tt", "net100", "net50", "mret25", "mret50", "lei", "netplus"))
+#data <- sortByRFT(data, c("lef"))
+data <- filterRFT(data, c("tt", "net50"))
+data <- sortByRFT(data, c("net100", "mret50", "mret25", "lei", "netplus", "lef"))
 
-genAndSaveAllGraphs(sData, "all", function(data, column) 
+genAndSaveAllGraphs(data, "all", function(data, column) 
   genBarGraph(data, X = data$V1, Y = data[,column], FILL = data$V2, "Benchmarks", getColumnName(column), TRUE)
 )
 
-genAndSaveAllGraphs(sData, "point", function(data, columnX, columnY) 
+data$type = ifelse(isFromBench(data, c("IE", "finereader", "word", "powerpoint", "gedit", "gnumeric", "gnome-weather", "gimp")), "Desktop App", "Spec")
+
+genAndSaveAllGraphs(data, "point", function(data, columnX, columnY) 
   genPointGraph(data, X = data[, columnX], Y = data[, columnY], FILL = data$V2, getColumnName(columnX), getColumnName(columnY))
 , TRUE)
 
-groupedsysmark <- groupByBench(sData, isFromBench(sData, 
+groupedspec    <- groupByBench(data, !isFromBench(data, 
             c("IE", "finereader", "word", "powerpoint", "gedit", "gnumeric", "gnome-weather", "gimp")), geo_mean)
-groupedspec    <- groupByBench(sData, !isFromBench(sData, 
+groupedsysmark <- groupByBench(data, isFromBench(data, 
             c("IE", "finereader", "word", "powerpoint", "gedit", "gnumeric", "gnome-weather", "gimp")), geo_mean)
 
-groupedspec$type    <- "SPEC"
+groupedspec$type    <- ".SPEC"
 groupedsysmark$type <- "Desktop Apps"
 grouped <- rbind(groupedspec, groupedsysmark)
 
 genAndSaveAllGraphs(grouped, "group", function(data, column) 
-  genBarGraph(data, X = data$type, Y = data[, column+1], FILL = data$Group.1, "Benchmarks", getColumnName(column), TRUE, FALSE, FALSE)
+  genBarGraph(data, X = data$type, Y = data[, column+1], FILL = data$Group.1, "Benchmarks", getColumnName(column), FALSE, FALSE, FALSE)
 )
 
 ##d <- read.table("hist", stringsAsFactors = FALSE)
